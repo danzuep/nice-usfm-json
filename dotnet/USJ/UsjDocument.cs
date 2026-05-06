@@ -13,19 +13,6 @@ public sealed record UsjDocument(
     public UsjDocument() : this(string.Empty) { }
 }
 
-public sealed record UsjIdentification(
-    [property: JsonPropertyName("code")]
-    string TranslationCode,
-    [property: JsonPropertyName("description")]
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    string? VersionDescription = null,
-    IList<IUsjNode>? Content = null,
-    string? Style = null
-) : UsjContentNodeBase("book", Style ?? "id", Content)
-{
-    public UsjIdentification() : this(string.Empty) { }
-}
-
 public sealed record UsjChapter(
     string Number,
     string? StartId = null,
@@ -194,4 +181,17 @@ public abstract record UsjMarkerBase(
     string? StartId = null
 ) : UsjStartEndBase(NodeKey, Style, StartId)
 {
+}
+
+public sealed record UsjIdentification(
+    [property: JsonPropertyName("code")]
+    string TranslationCode,
+    [property: JsonPropertyName("description")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? VersionDescription = null,
+    IList<IUsjNode>? Content = null,
+    string? Style = null
+) : UsjContentNodeBase("book", Style ?? "id", Content)
+{
+    public UsjIdentification() : this(string.Empty) { }
 }

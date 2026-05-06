@@ -5,16 +5,16 @@ namespace USX.Models
 {
     public sealed record UsjBook(
         [property: JsonIgnore]
-    string SchemaVersion,
+        string SchemaVersion,
         [property: JsonPropertyName("metadata")]
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    UsjIdentification? Metadata = null,
-        [property: JsonPropertyName("content")]
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    IList<IUsjNode>? Content = null
-    ) : UsjNodeBase("book"), IUsjContentNode
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        UsjIdentification? Metadata = null,
+        IList<IUsjNode>? Content = null,
+        string? Style = null
+    ) : UsjContentNodeBase("book", Style, Content)
     {
-        public override string Type => "book";
         public UsjBook() : this(string.Empty, new UsjIdentification(), new List<IUsjNode>()) { }
     }
+
+
 }

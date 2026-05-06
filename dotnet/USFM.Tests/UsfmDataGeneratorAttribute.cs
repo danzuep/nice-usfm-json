@@ -1,10 +1,10 @@
 using Assembly = System.Reflection.Assembly;
 
-namespace USX.Tests;
+namespace USFM.Tests;
 
-public class UsxDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, Stream, Stream)>
+public class UsfmDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, Stream, Stream)>
 {
-    internal static readonly string AssemblyDir = "USX.Tests.Data";
+    internal static readonly string AssemblyDir = "USFM.Tests.Data";
 
     protected override IEnumerable<Func<(string, Stream, Stream)>> GenerateDataSources(
         DataGeneratorMetadata dataGeneratorMetadata)
@@ -15,15 +15,15 @@ public class UsxDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, S
         foreach (var folderName in sampleFolders)
         {
             var resourceName = folderName.Replace("-", "_");
-            var usxResourceName = $"{AssemblyDir}.{resourceName}.origin.xml";
+            var usfmResourceName = $"{AssemblyDir}.{resourceName}.origin.usfm";
             var jsonResourceName = $"{AssemblyDir}.{resourceName}.proposed.json";
 
-            var usxStream = assembly.GetManifestResourceStream(usxResourceName);
+            var usfmStream = assembly.GetManifestResourceStream(usfmResourceName);
             var jsonStream = assembly.GetManifestResourceStream(jsonResourceName);
 
-            if (usxStream != null && jsonStream != null)
+            if (usfmStream != null && jsonStream != null)
             {
-                yield return () => (folderName, usxStream, jsonStream);
+                yield return () => (folderName, usfmStream, jsonStream);
             }
         }
     }
@@ -52,7 +52,7 @@ public class UsxDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, S
         return Directory
             .EnumerateDirectories(samplesDir)
             .Select(Path.GetFileName!)
-            .Where(name => !string.IsNullOrEmpty(name) && name != "usx")
+            .Where(name => name is not null && name != "usx")
             .OrderBy(name => name)
             .ToList();
 #pragma warning restore CS8619
@@ -67,7 +67,7 @@ public class StreamDataGeneratorAttribute : DataSourceGeneratorAttribute<(string
         var assembly = Assembly.GetExecutingAssembly();
         foreach (var name in assembly.GetManifestResourceNames())
         {
-            if (name.EndsWith("proposed.json") &&
+            if (name.EndsWith("origin.usfm") &&
                 assembly.GetManifestResourceStream(name) is Stream stream)
             {
                 yield return () => (name, stream);

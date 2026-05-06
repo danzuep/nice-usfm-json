@@ -22,7 +22,7 @@ namespace USJ.Tests
         }
 
         [Test]
-        [StreamDataGenerator]
+        [UsjDataGenerator]
         public async Task DeserializeUsjJson_WithCustomDataGenerator(string name, Stream stream)
         {
             TestContext.Current?.OutputWriter.WriteLine(name);

@@ -5,7 +5,6 @@ namespace USJ;
 
 /// <summary>
 /// Custom converter that powers the new USJ spec (unchanged behavior for all existing nodes).
-/// Only change: UsjChar is now ultra-simple + fully extensible via JsonExtensionData.
 /// </summary>
 public class UsjNodeConverter : JsonConverter<IUsjNode>
 {
@@ -57,11 +56,11 @@ public class UsjNodeConverter : JsonConverter<IUsjNode>
             return JsonSerializer.Deserialize<IList<IUsjNode>>(cEl.GetRawText(), opts);
         }
 
-        // NEW helper – captures every unknown key/value on a char node
+        // capture every unknown key/value on a char node
         static Dictionary<string, JsonElement> GetExtraProperties(JsonElement el)
         {
             var extras = new Dictionary<string, JsonElement>();
-            var known = new HashSet<string> { "type", "content", "status", "lemma", "closed", "link-id", "x-myattr" };
+            var known = new HashSet<string> { "type", "content" };
 
             foreach (var prop in el.EnumerateObject())
             {
@@ -73,7 +72,6 @@ public class UsjNodeConverter : JsonConverter<IUsjNode>
             return extras;
         }
 
-        // Simplified switch (UsjChar case is the only one that changed)
         return nodeKey switch
         {
             "USJ" => new UsjDocument(

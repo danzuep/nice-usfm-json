@@ -2,7 +2,7 @@
 
 namespace USJ;
 
-// The new USJ spec uses a "type" discriminator with variable values
+// The proposed USJ spec uses a "type" discriminator with variable values
 // (e.g. "para:p", "char:bk", "cell:th1") and inlines text as raw strings.
 [JsonConverter(typeof(UsjNodeConverter))]
 public interface IUsjNode
