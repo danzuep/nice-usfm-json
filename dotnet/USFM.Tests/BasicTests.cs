@@ -1,7 +1,4 @@
 using System.Reflection;
-using System.Text.Json;
-using Bible.Usfm.Services;
-using USJ;
 
 namespace USFM.Tests
 {
@@ -27,6 +24,10 @@ namespace USFM.Tests
             var converter = new UsfmToUsjConverter();
             var actualDocument = await converter.ConvertUsfmToUsjAsync(usfmStream);
             await Assert.That(actualDocument).IsNotNull();
+            await Assert.That(actualDocument.Type).IsEqualTo(UsfmToUsjConverter.Usj);
+            await Assert.That(actualDocument.Version).IsEqualTo(UsfmToUsjConverter.UsjVersion);
+            await Assert.That(actualDocument.Content).IsNotNull();
+            await Assert.That(actualDocument.Content.Count).IsEqualTo(4);
         }
 
         public static (string, Stream?) LoadEmbeddedFile(string resourceName)

@@ -7,7 +7,8 @@ namespace USFM;
 
 public class UsfmToUsjConverter
 {
-    private const string UsjVersion = "0.0.1-alpha.2";
+    internal const string Usj = "USJ";
+    internal const string UsjVersion = "0.0.1-alpha.2";
 
     public async Task<string> ConvertUsfmToUsjJsonAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
@@ -44,16 +45,18 @@ public class UsfmToUsjConverter
     public async IAsyncEnumerable<IReadOnlyList<IUsjNode>> EnumerateUsfmDocumentAsync(TextReader reader, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(reader);
+        var visitor = new UsjConvertingVisitor();
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
         {
-            yield return ParseLine(line);
+            yield return Parse(line, visitor);
         }
     }
 
-    private IReadOnlyList<IUsjNode> ParseLine(string line)
+    private IReadOnlyList<IUsjNode> Parse(string rawUsfm, IUsfmVisitor<IUsjNode> visitor)
     {
-        // Convert string to ReadOnlySpan to begin zero-allocation processing
-        return UsjSpanParser.ParseLineToUsj(line.AsSpan());
+        var syntaxTree = UsfmParser.Parse(rawUsfm.AsSpan());
+        var usjNodes = syntaxTree.Select(node => node.Accept(visitor)).ToArray();
+        return usjNodes;
     }
 }
