@@ -17,7 +17,7 @@ public class BookParser : IUsxElementParser
 
         if (reader.IsEmptyElement)
         {
-            return new UsjIdentification(code, versionName, null, style);
+            return new UsjBook(code, versionName, null, style);
         }
 
         await reader.ReadAsync();
@@ -33,6 +33,6 @@ public class BookParser : IUsxElementParser
             await reader.ReadAsync();
         }
 
-        return new UsjIdentification(code, versionName, null, style);
+        return new UsjBook(code, versionName, null, style);
     }
 }

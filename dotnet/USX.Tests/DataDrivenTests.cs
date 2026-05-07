@@ -14,7 +14,7 @@ namespace USX.Tests
         {
             TestContext.Current?.OutputWriter.WriteLine(name);
             await Assert.That(stream).IsNotNull();
-            var book = await JsonSerializer.DeserializeAsync<UsjBook>(stream);
+            var book = await JsonSerializer.DeserializeAsync<Models.UsjBook>(stream);
             await Assert.That(book).IsNotNull();
         }
 

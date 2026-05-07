@@ -8,9 +8,11 @@ public sealed record UsjDocument(
     string Version,
     IList<IUsjNode>? Content = null,
     string? Style = null
-) : UsjContentNodeBase("USJ", Style, Content)
+) : UsjContentNodeBase(UsjType, Style, Content)
 {
-    public UsjDocument() : this(string.Empty) { }
+    public const string UsjType = "USJ";
+    public const string UsjVersion = "0.0.1-alpha.2";
+    public UsjDocument() : this(UsjVersion) { }
 }
 
 public sealed record UsjChapter(
@@ -183,7 +185,7 @@ public abstract record UsjMarkerBase(
 {
 }
 
-public sealed record UsjIdentification(
+public sealed record UsjBook(
     [property: JsonPropertyName("code")]
     string TranslationCode,
     [property: JsonPropertyName("description")]
@@ -193,5 +195,5 @@ public sealed record UsjIdentification(
     string? Style = null
 ) : UsjContentNodeBase("book", Style ?? "id", Content)
 {
-    public UsjIdentification() : this(string.Empty) { }
+    public UsjBook() : this(string.Empty) { }
 }

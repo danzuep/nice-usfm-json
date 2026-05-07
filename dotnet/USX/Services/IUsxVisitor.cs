@@ -4,7 +4,7 @@ namespace Bible.Usx.Services
 {
     public interface IUsjVisitor
     {
-        void Visit(UsjIdentification book);
+        void Visit(UsjBook book);
         void Visit(UsjChapter chapter);
         void Visit(UsjVerse verse);
         void Visit(UsjChar metatext);
@@ -30,7 +30,7 @@ namespace Bible.Usx.Services
                 case UsjNote n: visitor.Visit(n); break;
                 case UsjLineBreak br: visitor.Visit(br); break;
                 case UsjMilestone ms: visitor.Visit(ms); break;
-                case UsjIdentification b: visitor.Accept(b); break;
+                case UsjBook b: visitor.Accept(b); break;
                 default:
                     throw new NotSupportedException($"Unknown USX type: {usjNode.GetType()}");
             }

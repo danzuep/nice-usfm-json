@@ -5,7 +5,7 @@ namespace Bible.Usx.Services
 {
     public class UsjToMarkdownVisitor : IUsjVisitor
     {
-        public static string GetFullText(UsjIdentification? usjBook)
+        public static string GetFullText(UsjBook? usjBook)
         {
             var visitor = new UsjToMarkdownVisitor();
             return visitor.Build(usjBook);
@@ -17,7 +17,7 @@ namespace Bible.Usx.Services
 
         public UsjToMarkdownVisitor() { }
 
-        public string Build(UsjIdentification? usxBook)
+        public string Build(UsjBook? usxBook)
         {
             this.Accept(usxBook);
 
@@ -33,7 +33,7 @@ namespace Bible.Usx.Services
             return _builder.ToString();
         }
 
-        public void Visit(UsjIdentification book)
+        public void Visit(UsjBook book)
         {
             if (!string.IsNullOrWhiteSpace(book.VersionDescription))
                 _builder.Append($"# {book.VersionDescription}");

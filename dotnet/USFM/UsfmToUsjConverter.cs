@@ -1,15 +1,13 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using USFM.Visitors;
 using USJ;
 
 namespace USFM;
 
 public class UsfmToUsjConverter
 {
-    internal const string Usj = "USJ";
-    internal const string UsjVersion = "0.0.1-alpha.2";
-
     public async Task<string> ConvertUsfmToUsjJsonAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
         var document = await ConvertUsfmToUsjAsync(usfmStream, cancellationToken);
@@ -25,11 +23,7 @@ public class UsfmToUsjConverter
     {
         using var reader = new StreamReader(usfmStream);
         var content = await ParseUsfmDocumentAsync(reader, cancellationToken);
-        return new UsjDocument
-        {
-            Version = UsjVersion,
-            Content = [.. content]
-        };
+        return new UsjDocument { Content = [.. content] };
     }
 
     public async Task<IList<IUsjNode>> ParseUsfmDocumentAsync(TextReader reader, CancellationToken cancellationToken = default)
@@ -45,18 +39,13 @@ public class UsfmToUsjConverter
     public async IAsyncEnumerable<IReadOnlyList<IUsjNode>> EnumerateUsfmDocumentAsync(TextReader reader, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(reader);
-        var visitor = new UsjConvertingVisitor();
+        UsjConvertingVisitor visitor;
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
         {
-            yield return Parse(line, visitor);
+            visitor = new();
+            visitor.Accept(line);
+            yield return visitor.GetResult();
         }
-    }
-
-    private IReadOnlyList<IUsjNode> Parse(string rawUsfm, IUsfmVisitor<IUsjNode> visitor)
-    {
-        var syntaxTree = UsfmParser.Parse(rawUsfm.AsSpan());
-        var usjNodes = syntaxTree.Select(node => node.Accept(visitor)).ToArray();
-        return usjNodes;
     }
 }

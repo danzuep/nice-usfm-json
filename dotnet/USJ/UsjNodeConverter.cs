@@ -79,7 +79,7 @@ public class UsjNodeConverter : JsonConverter<IUsjNode>
                 GetContent(root, "content", options),
                 Style: nodeStyle),
 
-            "book" => new UsjIdentification(
+            "book" => new UsjBook(
                 GetStringProperty(root, "code"),
                 TryGetStringProperty(root, "description"),
                 GetContent(root, "content", options),
