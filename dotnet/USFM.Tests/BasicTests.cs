@@ -18,11 +18,11 @@ namespace USFM.Tests
 
         [Test]
         [Arguments("minimal")]
-        public async Task DeserializeUsjJson_FromEmbeddedResource(string resourceName)
+        public async Task DeserializeUsfmUsj_FromEmbeddedResource(string resourceName)
         {
             (var fullResourceName, var usfmStream) = LoadEmbeddedFile(resourceName);
             await Assert.That(usfmStream).IsNotNull();
-            var converter = new UsfmToUsjConverter();
+            var converter = new UsfmConverter();
             var actualDocument = await converter.ConvertUsfmToUsjAsync(usfmStream);
             await Assert.That(actualDocument).IsNotNull();
             await Assert.That(actualDocument.Type).IsEqualTo(UsjDocument.UsjType);

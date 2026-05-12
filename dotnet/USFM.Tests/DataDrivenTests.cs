@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -13,7 +15,7 @@ public class DataDrivenTests
         await Assert.That(usfmStream).IsNotNull();
         await Assert.That(expectedJsonStream).IsNotNull();
 
-        var converter = new UsfmToUsjConverter();
+        var converter = new UsfmConverter();
         var actualDocument = await converter.ConvertUsfmToUsjAsync(usfmStream);
 
         await Assert.That(actualDocument).IsNotNull();
@@ -24,7 +26,7 @@ public class DataDrivenTests
             WriteIndented = true,
             PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
         var actualJson = JsonSerializer.Serialize(actualDocument, options);
 
@@ -36,6 +38,15 @@ public class DataDrivenTests
         // Compare JSON structures (allowing different attribute order)
         var expectedDoc = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(expectedJson);
         var actualDoc = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(actualJson);
+
+#if DEBUG
+        var path1 = Path.Combine("..", "..", $"{name}_expected.json");
+        await File.WriteAllTextAsync(path1, expectedJson);
+        Debug.WriteLine($"Serialized JSON written to: {path1}");
+        var path2 = Path.Combine("..", "..", $"{name}_actual.json");
+        await File.WriteAllTextAsync(path2, actualJson);
+        Debug.WriteLine($"Serialized JSON written to: {path2}");
+#endif
 
         await Assert.That(expectedDoc).IsNotNull();
         await Assert.That(actualDoc).IsEquivalentTo(expectedDoc);

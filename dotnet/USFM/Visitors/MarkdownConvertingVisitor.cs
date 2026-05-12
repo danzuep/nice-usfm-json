@@ -8,12 +8,9 @@ public class MarkdownConvertingVisitor : IUsfmVisitor
     private readonly StringBuilder _builder = new();
     private static readonly IReadOnlyList<string> ParaStylesToHide = ["ide", "toc", "mt"];
 
-    public string GetResult() => _builder.ToString();
-
     public void Visit(BookNode node)
     {
         _builder.AppendFormat("## {0}", node.Code).AppendLine();
-        this.Accept(node.Content);
     }
 
     public void Visit(ChapterNode node)
@@ -30,7 +27,7 @@ public class MarkdownConvertingVisitor : IUsfmVisitor
     {
         if (!string.IsNullOrEmpty(node.Style) &&
             node.Style.StartsWith("h", StringComparison.OrdinalIgnoreCase) &&
-            node.Content.FirstOrDefault() is TextNode textNode)
+            node.Content?.FirstOrDefault() is TextNode textNode)
         {
             _builder.AppendLine($"## {textNode.Text}").AppendLine();
         }
@@ -66,7 +63,9 @@ public class MarkdownConvertingVisitor : IUsfmVisitor
     public void Visit(RowNode node) => this.Accept(node.Content);
     public void Visit(CellNode node) => this.Accept(node.Content);
 
-    public string FinalizeMarkdown()
+    public string GetResult() => _builder.ToString();
+
+    public string FinalizeResult()
     {
         if (_footnotes.Any())
         {

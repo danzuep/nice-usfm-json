@@ -2,68 +2,42 @@
 
 namespace USFM.Visitors;
 
-public class UsjConvertingVisitor : IUsfmVisitor
+public class UsjConvertingVisitor : BaseStructuredVisitor<IUsjNode>
 {
-    // A stack to track current nesting level (e.g., current children of a Para or Char node)
-    private readonly Stack<List<IUsjNode>> _containerStack = new();
+    protected override IUsjNode CreateBook(BookNode node) =>
+        new UsjBook(node.Code, node.Description, null, node.Style);
 
-    public UsjConvertingVisitor()
-    {
-        // Initialize with a root list to catch top-level nodes
-        _containerStack.Push(new List<IUsjNode>());
-    }
+    protected override IUsjNode CreateChapter(ChapterNode node, string startId) =>
+        new UsjChapter(node.Number, startId, node.Style);
 
-    public IReadOnlyList<IUsjNode> GetResult() => _containerStack.Peek().ToArray();
+    protected override IUsjNode CreateVerse(VerseNode node, string startId) =>
+        new UsjVerse(node.Number, startId, node.Style);
 
-    private void ProcessContainer(IEnumerable<IUsfmNode> children, Action<IList<IUsjNode>> onComplete)
-    {
-        var localList = new List<IUsjNode>();
-        _containerStack.Push(localList);
-        this.Accept(children);
-        _containerStack.Pop();
-        onComplete(localList);
-    }
+    protected override IUsjNode CreatePara(ParaNode node, IList<IUsjNode>? children) =>
+        new UsjPara(null, children, node.Style);
 
-    public void Visit(BookNode node) =>
-        ProcessContainer(node.Content, c => _containerStack.Peek()
-            .Add(new UsjBook(node.Code, null, c, node.Style)));
+    protected override IUsjNode CreateChar(CharNode node, IList<IUsjNode>? children) =>
+        new UsjChar(children, node.Style);
 
-    public void Visit(ParaNode node) =>
-        ProcessContainer(node.Content, c => _containerStack.Peek()
-            .Add(new UsjPara(null, c, node.Style)));
+    protected override IUsjNode CreateText(TextNode node) =>
+        new UsjText(node.Text);
 
-    public void Visit(CharNode node) =>
-        ProcessContainer(node.Content, c => _containerStack.Peek()
-            .Add(new UsjChar(c, node.Style)));
+    protected override IUsjNode CreateNote(NoteNode node, IList<IUsjNode>? children) =>
+        new UsjNote(node.Caller, children, node.Style);
 
-    public void Visit(NoteNode node) =>
-        ProcessContainer(node.Content, c => _containerStack.Peek()
-            .Add(new UsjNote(node.Caller, c, node.Style)));
+    // Additional required overrides
+    public override void Visit(MilestoneNode node) =>
+        AddToResult(new UsjMilestone(node.StartId, node.EndId, node.Who, node.Style));
 
-    public void Visit(TableNode node) =>
-        ProcessContainer(node.Content, c => _containerStack.Peek()
-            .Add(new UsjTable(c, node.Style)));
+    public override void Visit(LineBreakNode node) =>
+        AddToResult(new UsjLineBreak(node.Style));
 
-    public void Visit(RowNode node) =>
-        ProcessContainer(node.Content, c => _containerStack.Peek()
-            .Add(new UsjRow(c, node.Style)));
+    public override void Visit(TableNode node) =>
+        AddToResult(new UsjTable(ProcessChildren(node.Content), node.Style));
 
-    public void Visit(CellNode node) =>
-        ProcessContainer(node.Content, c => _containerStack.Peek()
-            .Add(new UsjCell(node.Align, c, node.Style)));
+    public override void Visit(RowNode node) =>
+        AddToResult(new UsjRow(ProcessChildren(node.Content), node.Style));
 
-    public void Visit(ChapterNode node) =>
-        _containerStack.Peek().Add(new UsjChapter(node.Number, null, node.Style));
-
-    public void Visit(VerseNode node) =>
-        _containerStack.Peek().Add(new UsjVerse(node.Number, null, node.Style));
-
-    public void Visit(TextNode node) =>
-        _containerStack.Peek().Add(new UsjText(node.Text));
-
-    public void Visit(MilestoneNode node) =>
-        _containerStack.Peek().Add(new UsjMilestone(node.Sid, node.Eid, null, node.Style));
-
-    public void Visit(LineBreakNode node) =>
-        _containerStack.Peek().Add(new UsjLineBreak(node.Style));
+    public override void Visit(CellNode node) =>
+        AddToResult(new UsjCell(node.Align, ProcessChildren(node.Content), node.Style));
 }

@@ -4,7 +4,7 @@ namespace USFM.Tests;
 
 public class UsfmDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, Stream, Stream)>
 {
-    internal static readonly string AssemblyDir = "USFM.Tests.Data";
+    internal static readonly string AssemblyPrefix = StreamDataGeneratorAttribute.AssemblyPrefix;
 
     protected override IEnumerable<Func<(string, Stream, Stream)>> GenerateDataSources(
         DataGeneratorMetadata dataGeneratorMetadata)
@@ -15,8 +15,8 @@ public class UsfmDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, 
         foreach (var folderName in sampleFolders)
         {
             var resourceName = folderName.Replace("-", "_");
-            var usfmResourceName = $"{AssemblyDir}.{resourceName}.origin.usfm";
-            var jsonResourceName = $"{AssemblyDir}.{resourceName}.proposed.json";
+            var usfmResourceName = $"{AssemblyPrefix}{resourceName}.origin.usfm";
+            var jsonResourceName = $"{AssemblyPrefix}{resourceName}.proposed.json";
 
             var usfmStream = assembly.GetManifestResourceStream(usfmResourceName);
             var jsonStream = assembly.GetManifestResourceStream(jsonResourceName);
@@ -61,17 +61,25 @@ public class UsfmDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, 
 
 public class StreamDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, Stream)>
 {
+    internal static readonly string AssemblyPrefix = "USFM.Tests.Data.";
+    internal static readonly string AssemblySuffix = ".origin.usfm";
+
+    public string GetShortName(string resourceName) =>
+        resourceName[AssemblyPrefix.Length..^AssemblySuffix.Length];
+
     protected override IEnumerable<Func<(string, Stream)>> GenerateDataSources(
         DataGeneratorMetadata dataGeneratorMetadata)
     {
         var assembly = Assembly.GetExecutingAssembly();
         foreach (var name in assembly.GetManifestResourceNames())
         {
-            if (name.EndsWith("origin.usfm") &&
+            if (name.EndsWith(AssemblySuffix) &&
                 assembly.GetManifestResourceStream(name) is Stream stream)
             {
-                yield return () => (name, stream);
+                var shortName = GetShortName(name);
+                yield return () => (shortName, stream);
             }
         }
     }
 }
+    

@@ -61,10 +61,10 @@ namespace USJ.Tests
             await _db.SetAsync($"actual_{name}", actualJson);
 
 #if DEBUG
-            var path1 = Path.Combine("..", "..", $"expected_{name}");
+            var path1 = Path.Combine("..", "..", $"{name}_expected.json");
             await File.WriteAllTextAsync(path1, expectedJson);
             Debug.WriteLine($"Serialized JSON written to: {path1}");
-            var path2 = Path.Combine("..", "..", $"actual_{name}");
+            var path2 = Path.Combine("..", "..", $"{name}_actual.json");
             await File.WriteAllTextAsync(path2, actualJson);
             Debug.WriteLine($"Serialized JSON written to: {path2}");
 #endif
