@@ -59,9 +59,15 @@ public static class UsfmVisitorExtensions
 
     public static async Task ParseAsync(this IUsfmVisitor visitor, Stream stream, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(visitor);
         ArgumentNullException.ThrowIfNull(stream);
         using var reader = new StreamReader(stream);
+        await visitor.ParseAsync(reader, cancellationToken);
+    }
+
+    public static async Task ParseAsync(this IUsfmVisitor visitor, StreamReader reader, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(visitor);
+        ArgumentNullException.ThrowIfNull(reader);
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
         {
@@ -86,7 +92,14 @@ public class BookNode : IUsfmNode
     public string? Description { get; }
     public BookNode(string style, string? code, string? description = null)
         { Style = style; Code = code ?? string.Empty; Description = description; }
-    public override string ToString() => $"{Style} {Code} {Description}";
+
+    public override string ToString()
+    {
+        if (string.IsNullOrEmpty(Description))
+            return $"\\{Style} {Code}";
+        else
+            return $"\\{Style} {Code} {Description}";
+    }
 }
 
 public class ChapterNode : IUsfmNode
@@ -95,7 +108,7 @@ public class ChapterNode : IUsfmNode
     public string Number { get; }
     public ChapterNode(string style, string number)
         { Style = style; Number = number; }
-    public override string ToString() => $"{Style} {Number}";
+    public override string ToString() => $"\\{Style} {Number}";
 }
 
 public class VerseNode : IUsfmNode
@@ -104,7 +117,7 @@ public class VerseNode : IUsfmNode
     public string Number { get; }
     public VerseNode(string style, string number)
         { Style = style; Number = number; }
-    public override string ToString() => $"{Style} {Number}";
+    public override string ToString() => $"\\{Style} {Number}";
 }
 
 public class ParaNode : IUsfmNode
@@ -113,7 +126,7 @@ public class ParaNode : IUsfmNode
     public IList<IUsfmNode>? Content { get; }
     public ParaNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"{Style} {Content?.Count ?? 0}";
+    public override string ToString() => $"\\{Style}"; // {Content?.Count ?? 0}
 }
 
 public class CharNode : IUsfmNode
@@ -122,7 +135,7 @@ public class CharNode : IUsfmNode
     public IList<IUsfmNode>? Content { get; }
     public CharNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"{Style} {Content?.Count ?? 0}";
+    public override string ToString() => $"\\{Style} {Content?.Count ?? 0}";
 }
 
 public class NoteNode : IUsfmNode
@@ -132,7 +145,7 @@ public class NoteNode : IUsfmNode
     public IList<IUsfmNode>? Content { get; }
     public NoteNode(string style, string caller, IList<IUsfmNode>? content = null)
         { Style = style; Caller = caller; Content = content; }
-    public override string ToString() => $"{Style} {Caller} {Content?.Count ?? 0}";
+    public override string ToString() => $"\\{Style} {Caller} {Content?.Count ?? 0}";
 }
 
 public class TableNode : IUsfmNode
@@ -141,7 +154,7 @@ public class TableNode : IUsfmNode
     public IList<IUsfmNode>? Content { get; }
     public TableNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"{Style} {Content?.Count ?? 0}";
+    public override string ToString() => $"\\{Style} {Content?.Count ?? 0}";
 }
 
 public class RowNode : IUsfmNode
@@ -150,7 +163,7 @@ public class RowNode : IUsfmNode
     public IList<IUsfmNode>? Content { get; }
     public RowNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"{Style} {Content?.Count ?? 0}";
+    public override string ToString() => $"\\{Style} {Content?.Count ?? 0}";
 }
 
 public class CellNode : IUsfmNode
@@ -160,7 +173,7 @@ public class CellNode : IUsfmNode
     public IList<IUsfmNode>? Content { get; }
     public CellNode(string style, string align, IList<IUsfmNode>? content = null)
         { Style = style; Align = align; Content = content; }
-    public override string ToString() => $"{Style} {Align} {Content?.Count ?? 0}";
+    public override string ToString() => $"\\{Style} {Align} {Content?.Count ?? 0}";
 }
 
 public class MilestoneNode : IUsfmNode
@@ -178,7 +191,7 @@ public class MilestoneNode : IUsfmNode
         Attributes = attributes;
     }
 
-    public override string ToString() => $"{Style} {StartId} {EndId} {Who} {Level}";
+    public override string ToString() => $"\\{Style} {StartId} {EndId} {Who} {Level}";
 }
 
 public class LineBreakNode : IUsfmNode

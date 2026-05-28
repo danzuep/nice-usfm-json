@@ -21,6 +21,15 @@ public class UsfmConverter
         return visitor.GetResult();
     }
 
+    public static async Task<IList<IUsfmNode>> ConvertUsfmAsync(StreamReader usfmReader, CancellationToken cancellationToken = default)
+    {
+        var visitor = new UsfmStructuredVisitor();
+        await visitor.ParseAsync(usfmReader, cancellationToken);
+        var content = new List<IUsfmNode>();
+        content.AddRange(visitor.FinalizeResult());
+        return content;
+    }
+
     public async Task<IList<IUsfmNode>> ConvertUsfmAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
         var visitor = new UsfmStructuredVisitor();

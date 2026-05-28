@@ -14,14 +14,29 @@ namespace USFM.Tests
 
             await Assert.That(stream).IsNotNull();
 
-            var converter = new UsfmConverter();
-            var nodes = await converter.ConvertUsfmAsync(stream);
+            using var reader = new StreamReader(stream);
+            var nodes = await UsfmConverter.ConvertUsfmAsync(reader);
+            stream.Seek(0, SeekOrigin.Begin);
 
             await Assert.That(nodes).IsNotNull();
 
-            foreach (var node in nodes)
+            var index = 0;
+            string? expected;
+            while ((expected = await reader.ReadLineAsync()) != null)
             {
-                TestContext.Current?.OutputWriter.WriteLine($"{node}");
+                if (expected.StartsWith("\\qt-"))
+                {
+                    continue;
+                }    
+                await Assert.That(index).IsLessThan(nodes.Count);
+                var actual = $"{nodes[index]}";
+                if (actual.Length < expected.Length && ++index < nodes.Count)
+                {
+                    var nextNode = $"{nodes[index]}";
+                    actual = $"{actual} {nextNode}";
+                }
+                await Assert.That(actual).IsEqualTo(expected);
+                index++;
             }
 
 #if DEBUG
@@ -29,6 +44,7 @@ namespace USFM.Tests
             File.Delete(path);
             foreach (var node in nodes)
             {
+                TestContext.Current?.OutputWriter.WriteLine($"{node}");
                 await File.AppendAllTextAsync(path, $"{node}\n");
             }
             Debug.WriteLine($"USFM written to: {path}");
