@@ -1,3 +1,5 @@
+using USFM.Visitors;
+
 namespace USFM.Tests;
 
 public class UsfmTokenizerTests
@@ -22,7 +24,7 @@ public class UsfmTokenizerTests
     }
 
     [Test]
-    public async Task QtWithAttributes()
+    public async Task QuoteWithAttributes()
     {
         var input = "\\qt-s |sid=\"qt_123\" who=\"Pilate\" \\*“Are you the king of the Jews?\\qt-e |eid=\"qt_123\" \\*";
         var tokenizer = new UsfmTokenizer(input.AsSpan());
@@ -34,6 +36,34 @@ public class UsfmTokenizerTests
         var qt = tokenStrings.FirstOrDefault(t => t.Type.StartsWith("qt-s"));
         await Assert.That(qt.Type).Contains("qt-s");
         await Assert.That(qt.Value).Contains("sid=\"qt_123\"");
+    }
+
+    [Test]
+    public async Task ChapterVerse()
+    {
+        var input = @"\v 1 \va 3\va* \vp 1b\vp* This";
+        var tokenizer = new UsfmTokenizer(input.AsSpan());
+
+        var nodes = new List<IUsfmNode>();
+        while (tokenizer.TryMoveNext(out var tk))
+        {
+            switch (tk.Type)
+            {
+                case var type when type.IsEmpty:
+                    nodes.Add(new TextNode(tk.Value.ToString()));
+                    break;
+                default:
+                    nodes.Add(new VerseNode(tk.Type.ToString(), tk.Value.ToString()));
+                    break;
+            }
+        }
+
+        await Assert.That(nodes).IsNotEmpty();
+        var verse = nodes.First() as VerseNode;
+        await Assert.That(verse).IsNotNull();
+        await Assert.That(verse.Number).StartsWith("1");
+        //var text = nodes.FirstOrDefault(t => t is TextNode);
+        //await Assert.That(text).IsEqualTo("This");
     }
 
     [Test]
