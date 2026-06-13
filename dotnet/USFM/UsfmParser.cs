@@ -32,6 +32,7 @@ public partial class UsfmParser
 
         public void PushInline() => _contentStack.Push(new List<IUsfmNode>());
         public IList<IUsfmNode>? PopInline() => _contentStack.Count > 0 ? _contentStack.Pop() : null;
+        public bool HasInline() => _contentStack.Count > 0;
     }
 
     public static IReadOnlyList<IUsfmNode> Parse(ReadOnlySpan<char> usfmData)
@@ -56,14 +57,17 @@ public partial class UsfmParser
                     break;
 
                 case UsfmMarkerType.Inline:
-                    state.PushInline(); // Context for potential nested content
+                    // For inline markers, if there is trailing value text, add it to the current context
                     if (!token.Value.IsEmpty)
                         state.Add(new TextNode(token.Value.ToString()));
+                    state.PushInline(); // Context for potential nested content
                     break;
 
                 case UsfmMarkerType.Closing:
                     var content = state.PopInline();
-                    state.Add(new CharNode(token.Type.TrimEnd('*').ToString(), content));
+                    state.Add(new CharNode(token.Type.ToString().TrimEnd('*'), content));
+                    if (!token.Value.IsEmpty)
+                        state.Add(new TextNode(token.Value.ToString()));
                     break;
 
                 default: // Raw text tokens
@@ -93,7 +97,15 @@ public partial class UsfmParser
                 SplitText(token.Value, out var verseSplit);
                 state.Add(new VerseNode("v", verseSplit.Type.ToString()));
                 if (!verseSplit.Value.IsEmpty)
+                {
+                    state.Add(new LineBreakNode(" "));
                     state.Add(new TextNode(verseSplit.Value.ToString()));
+                }
+                else if (!token.Value.IsEmpty && token.Value[token.Value.Length - 1] == ' ')
+                {
+                    // Preserve a trailing space after a verse marker when the next token is an inline marker
+                    state.Add(new LineBreakNode(" "));
+                }
                 break;
             default:
                 HandleMilestone(token, state);
@@ -111,19 +123,25 @@ public partial class UsfmParser
             var startIndex = token.Value[0] == '|' ? 1 : 0;
             var attributes = UsfmAttributeParser.Parse(token.Value, out int textStartIndex);
             state.Add(new MilestoneNode(token.Type.ToString(), attributes));
-
             // If there is text after the \* delimiter, add it as a TextNode
             if (textStartIndex != -1 && textStartIndex < token.Value.Length)
             {
                 var remainingText = token.Value[textStartIndex..];
                 if (!remainingText.IsEmpty)
                 {
+                    // If the remaining text begins with no whitespace but the milestone is adjacent to prior text,
+                    // ensure we add a single space so concatenation matches original line spacing.
+                    if (!char.IsWhiteSpace(remainingText[0]) && !state.HasInline())
+                    {
+                        state.Add(new TextNode(" "));
+                    }
                     state.Add(new TextNode(remainingText.ToString()));
                 }
             }
         }
         else
         {
+            //state.Add(new SeparatorNode(" "));
             state.Add(new TextNode(token.Value.ToString()));
         }
     }
@@ -154,6 +172,17 @@ public partial class UsfmParser
 
         // Block markers start paragraphs or sections
         if (marker.StartsWith("p") || marker.StartsWith("s") || marker is "r" or "m")
+            return UsfmMarkerType.Block;
+
+        // Additional block-like markers commonly used in samples
+        if (marker.StartsWith("h") || marker.StartsWith("i") || marker.StartsWith("l") ||
+            marker.StartsWith("t") || marker.StartsWith("q") || marker.StartsWith("cl") ||
+            marker.StartsWith("ca") || marker.StartsWith("cp") || marker.StartsWith("cd") ||
+            marker.StartsWith("mt") || marker.StartsWith("is") || marker.StartsWith("ip") ||
+            marker.StartsWith("li") || marker.StartsWith("tr") || marker.StartsWith("th") ||
+            marker.StartsWith("tc") || marker == "lh")
+            return UsfmMarkerType.Block;
+        if (marker == "usfm")
             return UsfmMarkerType.Block;
 
         return UsfmMarkerType.Inline;

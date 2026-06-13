@@ -1,4 +1,5 @@
 ﻿using System.Reflection.Metadata;
+using System.Text;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace USFM.Visitors;
@@ -78,14 +79,14 @@ public static class UsfmVisitorExtensions
 
 public interface IUsfmNode { }
 
-public class TextNode : IUsfmNode
+public sealed class TextNode : IUsfmNode
 {
     public string Text { get; }
     public TextNode(string text) => Text = text;
     public override string ToString() => Text;
 }
 
-public class BookNode : IUsfmNode
+public sealed class BookNode : IUsfmNode
 {
     public string Style { get; } = "id";
     public string Code { get; }
@@ -102,7 +103,7 @@ public class BookNode : IUsfmNode
     }
 }
 
-public class ChapterNode : IUsfmNode
+public sealed class ChapterNode : IUsfmNode
 {
     public string Style { get; } = "c";
     public string Number { get; }
@@ -111,7 +112,7 @@ public class ChapterNode : IUsfmNode
     public override string ToString() => $"\\{Style} {Number}";
 }
 
-public class VerseNode : IUsfmNode
+public sealed class VerseNode : IUsfmNode
 {
     public string Style { get; } = "v";
     public string Number { get; }
@@ -120,63 +121,139 @@ public class VerseNode : IUsfmNode
     public override string ToString() => $"\\{Style} {Number}";
 }
 
-public class ParaNode : IUsfmNode
+public sealed class ParaNode : IUsfmNode
 {
     public string Style { get; }
     public IList<IUsfmNode>? Content { get; }
     public ParaNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"\\{Style}"; // {Content?.Count ?? 0}
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFormat("\\{0}", Style);
+        if (Content != null && Content.Count > 0)
+        {
+            var first = Content[0]?.ToString() ?? string.Empty;
+            if (first.Length > 0 && !char.IsWhiteSpace(first[0])) sb.Append(' ');
+            foreach (var child in Content)
+                sb.Append(child?.ToString());
+        }
+        return sb.ToString();
+    }
 }
 
-public class CharNode : IUsfmNode
+public sealed class CharNode : IUsfmNode
 {
     public string Style { get; }
     public IList<IUsfmNode>? Content { get; }
     public CharNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"\\{Style} {Content?.Count ?? 0}";
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFormat("\\{0}", Style);
+        if (Content != null && Content.Count > 0)
+        {
+            var first = Content[0]?.ToString() ?? string.Empty;
+            if (first.Length > 0 && !char.IsWhiteSpace(first[0])) sb.Append(' ');
+            foreach (var child in Content)
+                sb.Append(child?.ToString());
+        }
+        sb.AppendFormat("\\{0}*", Style);
+        return sb.ToString();
+    }
 }
 
-public class NoteNode : IUsfmNode
+public sealed class NoteNode : IUsfmNode
 {
     public string Style { get; }
     public string Caller { get; }
     public IList<IUsfmNode>? Content { get; }
     public NoteNode(string style, string caller, IList<IUsfmNode>? content = null)
         { Style = style; Caller = caller; Content = content; }
-    public override string ToString() => $"\\{Style} {Caller} {Content?.Count ?? 0}";
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFormat("\\{0}", Style);
+        if (!string.IsNullOrEmpty(Caller)) sb.Append(' ').Append(Caller);
+        if (Content != null && Content.Count > 0)
+        {
+            var first = Content[0]?.ToString() ?? string.Empty;
+            if (first.Length > 0 && !char.IsWhiteSpace(first[0])) sb.Append(' ');
+            foreach (var child in Content)
+                sb.Append(child?.ToString());
+        }
+        sb.AppendFormat("\\{0}*", Style);
+        return sb.ToString();
+    }
 }
 
-public class TableNode : IUsfmNode
+public sealed class TableNode : IUsfmNode
 {
     public string Style { get; }
     public IList<IUsfmNode>? Content { get; }
     public TableNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"\\{Style} {Content?.Count ?? 0}";
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFormat("\\{0}", Style);
+        if (Content != null && Content.Count > 0)
+        {
+            var first = Content[0]?.ToString() ?? string.Empty;
+            if (first.Length > 0 && !char.IsWhiteSpace(first[0])) sb.Append(' ');
+            foreach (var child in Content)
+                sb.Append(child?.ToString());
+        }
+        return sb.ToString();
+    }
 }
 
-public class RowNode : IUsfmNode
+public sealed class RowNode : IUsfmNode
 {
     public string Style { get; }
     public IList<IUsfmNode>? Content { get; }
     public RowNode(string style, IList<IUsfmNode>? content = null)
         { Style = style; Content = content; }
-    public override string ToString() => $"\\{Style} {Content?.Count ?? 0}";
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFormat("\\{0}", Style);
+        if (Content != null && Content.Count > 0)
+        {
+            var first = Content[0]?.ToString() ?? string.Empty;
+            if (first.Length > 0 && !char.IsWhiteSpace(first[0])) sb.Append(' ');
+            foreach (var child in Content)
+                sb.Append(child?.ToString());
+        }
+        return sb.ToString();
+    }
 }
 
-public class CellNode : IUsfmNode
+public sealed class CellNode : IUsfmNode
 {
     public string Style { get; }
     public string Align { get; }
     public IList<IUsfmNode>? Content { get; }
     public CellNode(string style, string align, IList<IUsfmNode>? content = null)
         { Style = style; Align = align; Content = content; }
-    public override string ToString() => $"\\{Style} {Align} {Content?.Count ?? 0}";
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFormat("\\{0}", Style);
+        if (!string.IsNullOrEmpty(Align)) sb.Append(Align);
+        if (Content != null && Content.Count > 0)
+        {
+            var first = Content[0]?.ToString() ?? string.Empty;
+            if (first.Length > 0 && !char.IsWhiteSpace(first[0])) sb.Append(' ');
+            foreach (var child in Content)
+                sb.Append(child?.ToString());
+        }
+        return sb.ToString();
+    }
 }
 
-public class MilestoneNode : IUsfmNode
+public sealed class MilestoneNode : IUsfmNode
 {
     public string Style { get; }
     public string? StartId => Attributes.GetValueOrDefault("sid");
@@ -191,12 +268,27 @@ public class MilestoneNode : IUsfmNode
         Attributes = attributes;
     }
 
-    public override string ToString() => $"\\{Style} {StartId} {EndId} {Who} {Level}";
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFormat("\\{0}", Style);
+        if (Attributes != null && Attributes.Count > 0)
+        {
+            sb.Append(" |");
+            foreach (var kvp in Attributes)
+            {
+                sb.AppendFormat("{0}=\"{1}\" ", kvp.Key, kvp.Value);
+            }
+            sb.Append("\\*");
+        }
+        return sb.ToString();
+    }
 }
 
-public class LineBreakNode : IUsfmNode
+public sealed class LineBreakNode : IUsfmNode
 {
     public string Style { get; }
-    public LineBreakNode(string style) => Style = style;
+    public LineBreakNode(string? style = null) =>
+        Style = style ?? Environment.NewLine;
     public override string ToString() => Style;
 }

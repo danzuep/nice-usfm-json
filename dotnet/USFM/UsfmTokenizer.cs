@@ -30,24 +30,31 @@ public ref struct UsfmTokenizer
     private void GetMarker(out UsfmToken token)
     {
         var index = 1;
-        while (index < _remaining.Length &&
-            _remaining[index] != Asterisk &&
-            !char.IsWhiteSpace(_remaining[index]))
+        while (index < _remaining.Length && _remaining[index] != Asterisk && !char.IsWhiteSpace(_remaining[index]))
         {
             index++;
         }
-        var marker = _remaining[1..index];
-        if (index < _remaining.Length)
-        {
-            index++;
-        }
-        var remaining = _remaining[index..];
+
+        // include trailing asterisk as part of the marker (e.g. \w*)
+        var includeAsterisk = (index < _remaining.Length && _remaining[index] == Asterisk);
+        var markerEnd = index + (includeAsterisk ? 1 : 0);
+        var marker = _remaining[1..markerEnd];
+
+        // Determine start of the value: skip a single whitespace after the marker (or asterisk) if present
+        var remainingStart = markerEnd;
+        if (remainingStart < _remaining.Length && char.IsWhiteSpace(_remaining[remainingStart]))
+            remainingStart++;
+
+        var remaining = _remaining[remainingStart..];
+        // Trim any leading whitespace from the value
+        while (!remaining.IsEmpty && char.IsWhiteSpace(remaining[0]))
+            remaining = remaining.Slice(1);
+
         var nextSlash = remaining.IndexOf(Backslash);
         if (nextSlash != -1)
         {
-            var nextIndex = nextSlash == 0 ? nextSlash : nextSlash - 1;
-            token = new UsfmToken(marker, remaining[..nextIndex]);
-            _remaining = remaining[nextSlash..];
+            token = new UsfmToken(marker, remaining[..nextSlash]);
+            _remaining = remaining.Slice(nextSlash);
         }
         else
         {

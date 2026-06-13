@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Reflection.PortableExecutable;
+using USFM.Visitors;
 
 namespace USFM.Tests
 {
@@ -9,7 +11,7 @@ namespace USFM.Tests
         public async Task ConvertUsfm_ManualVerification()
         {
             // Load the minimal USFM file using the same approach as BasicTests
-            var name = "milestones";
+            var name = "chapter_verse";
             var (_, stream) = LoadEmbeddedFile(name);
 
             await Assert.That(stream).IsNotNull();
@@ -19,36 +21,39 @@ namespace USFM.Tests
             stream.Seek(0, SeekOrigin.Begin);
 
             await Assert.That(nodes).IsNotNull();
+            await Assert.That(nodes.Count).IsGreaterThan(0);
 
             var index = 0;
             string? expected;
             while ((expected = await reader.ReadLineAsync()) != null)
             {
-                if (expected.StartsWith("\\qt-"))
-                {
-                    continue;
-                }    
+                var actualNode = nodes[index];
                 await Assert.That(index).IsLessThan(nodes.Count);
                 var actual = $"{nodes[index]}";
-                if (actual.Length < expected.Length && ++index < nodes.Count)
+                while (actual.Length < expected.Length && ++index < nodes.Count)
                 {
-                    var nextNode = $"{nodes[index]}";
-                    actual = $"{actual} {nextNode}";
+                    var nextNode = nodes[index];
+                    actual = $"{actual}{nextNode}";
                 }
-                await Assert.That(actual).IsEqualTo(expected);
+                if (actual != expected)
+                {
+                    TestContext.Current?.OutputWriter.WriteLine($"Expected: {expected}");
+                    TestContext.Current?.OutputWriter.WriteLine($"Actual:   {actual}");
+                    await Assert.That(actual).IsEqualTo(expected);
+                }
                 index++;
             }
 
-#if DEBUG
-            var path = Path.Combine("..", "..", $"usfm_{name}.txt");
-            File.Delete(path);
-            foreach (var node in nodes)
-            {
-                TestContext.Current?.OutputWriter.WriteLine($"{node}");
-                await File.AppendAllTextAsync(path, $"{node}\n");
-            }
-            Debug.WriteLine($"USFM written to: {path}");
-#endif
+// #if DEBUG
+//             var path = Path.Combine("..", "..", $"usfm_{name}.txt");
+//             File.Delete(path);
+//             foreach (var node in nodes)
+//             {
+//                 TestContext.Current?.OutputWriter.WriteLine($"{node}");
+//                 await File.AppendAllTextAsync(path, $"{node}");
+//             }
+//             Debug.WriteLine($"USFM written to: {path}");
+// #endif
         }
 
         [Test]
@@ -58,16 +63,33 @@ namespace USFM.Tests
             TestContext.Current?.OutputWriter.WriteLine(name);
             await Assert.That(usfmStream).IsNotNull();
 
-            var converter = new UsfmConverter();
-            var nodes = await converter.ConvertUsfmAsync(usfmStream);
+            using var reader = new StreamReader(usfmStream);
+            var nodes = await UsfmConverter.ConvertUsfmAsync(reader);
+            usfmStream.Seek(0, SeekOrigin.Begin);
 
             await Assert.That(nodes).IsNotNull();
+            await Assert.That(nodes.Count).IsGreaterThan(0);
 
-            foreach (var node in nodes)
+            var index = 0;
+            string? expected;
+            while ((expected = await reader.ReadLineAsync()) != null)
             {
-                TestContext.Current?.OutputWriter.WriteLine($"{node}");
+                var actualNode = nodes[index];
+                await Assert.That(index).IsLessThan(nodes.Count);
+                var actual = $"{nodes[index]}";
+                while (actual.Length < expected.Length && ++index < nodes.Count)
+                {
+                    var nextNode = nodes[index];
+                    actual = $"{actual}{nextNode}";
+                }
+                if (actual != expected)
+                {
+                    TestContext.Current?.OutputWriter.WriteLine($"Expected: {expected}");
+                    TestContext.Current?.OutputWriter.WriteLine($"Actual:   {actual}");
+                    await Assert.That(actual).IsEqualTo(expected);
+                }
+                index++;
             }
-
 #if DEBUG
             var path = Path.Combine("..", "..", $"usfm_{name}.txt");
             File.Delete(path);
