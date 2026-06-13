@@ -7,10 +7,6 @@ public partial class UsfmParser
     {
         public readonly List<IUsfmNode> Root = new();
         private readonly Stack<List<IUsfmNode>> _contentStack = new();
-        // Parallel stack to track the marker name associated with each content frame.
-        // For paragraph frames this will be null; for inline frames it contains the marker name
-        // (e.g. "x", "xo"). This allows matching closing markers to the correct frame.
-        private readonly Stack<string?> _markerStack = new();
         private string? _activeParaStyle;
 
         public void Add(IUsfmNode node)
@@ -24,63 +20,19 @@ public partial class UsfmParser
             ClosePara();
             _activeParaStyle = style;
             _contentStack.Push(new List<IUsfmNode>());
-            _markerStack.Push(null);
         }
 
         public void ClosePara()
         {
             if (_activeParaStyle == null) return;
             var content = _contentStack.Count > 0 ? _contentStack.Pop() : null;
-            if (_markerStack.Count > 0) _markerStack.Pop();
             Root.Add(new ParaNode(_activeParaStyle, content?.Count > 0 ? content : null));
             _activeParaStyle = null;
         }
 
-        public void PushInline(string marker)
-        {
-            _contentStack.Push(new List<IUsfmNode>());
-            _markerStack.Push(marker);
-        }
-
-        // Pop the nearest inline frame matching the provided marker name. If not found,
-        // pop the top-most inline frame.
-        public IList<IUsfmNode>? PopInline(string marker)
-        {
-            if (_markerStack.Count == 0 || _contentStack.Count == 0)
-                return null;
-
-            // If top matches, pop and return
-            if (_markerStack.Peek() == marker)
-            {
-                _markerStack.Pop();
-                return _contentStack.Pop();
-            }
-
-            // Otherwise, search down the stack for the matching marker
-            var tempMarkers = new List<string?>();
-            var tempContents = new List<List<IUsfmNode>>();
-            while (_markerStack.Count > 0 && _markerStack.Peek() != marker)
-            {
-                tempMarkers.Add(_markerStack.Pop());
-                tempContents.Add(_contentStack.Pop());
-            }
-            // If we found a match, pop it
-            IList<IUsfmNode>? result = null;
-            if (_markerStack.Count > 0 && _markerStack.Peek() == marker)
-            {
-                _markerStack.Pop();
-                result = _contentStack.Pop();
-            }
-            // push back any frames we popped that did not match (preserve order)
-            for (int i = tempMarkers.Count - 1; i >= 0; i--)
-            {
-                _markerStack.Push(tempMarkers[i]);
-                _contentStack.Push(tempContents[i]);
-            }
-            return result;
-        }
-
-        public bool HasInline() => _markerStack.Any(m => m != null);
+        public void PushInline() => _contentStack.Push(new List<IUsfmNode>());
+        public IList<IUsfmNode>? PopInline() => _contentStack.Count > 0 ? _contentStack.Pop() : null;
+        public bool HasInline() => _contentStack.Count > 0;
     }
 
     public static IReadOnlyList<IUsfmNode> Parse(ReadOnlySpan<char> usfmData)
@@ -101,20 +53,18 @@ public partial class UsfmParser
                     break;
 
                 case UsfmMarkerType.Milestone:
-                    var nodes = HandleMarker(token);
-                    foreach (var node in nodes) state.Add(node);
+                    HandleMarker(token, state);
                     break;
 
                 case UsfmMarkerType.Inline:
-                    // For inline markers, push an inline context with the marker name so the matching
-                    // closing marker can pop the correct frame. Then add any trailing text as content.
-                    state.PushInline(token.Type.ToString()); // Context for potential nested content
+                    // For inline markers, if there is trailing value text, add it to the current context
                     if (!token.Value.IsEmpty)
                         state.Add(new TextNode(token.Value.ToString()));
+                    state.PushInline(); // Context for potential nested content
                     break;
 
                 case UsfmMarkerType.Closing:
-                    var content = state.PopInline(token.Type.ToString().TrimEnd('*'));
+                    var content = state.PopInline();
                     state.Add(new CharNode(token.Type.ToString().TrimEnd('*'), content));
                     if (!token.Value.IsEmpty)
                         state.Add(new TextNode(token.Value.ToString()));
@@ -131,42 +81,40 @@ public partial class UsfmParser
         return state.Root;
     }
 
-    private static IReadOnlyList<IUsfmNode> HandleMarker(UsfmToken token)
+    private static void HandleMarker(UsfmToken token, ParserState state)
     {
-        var nodes = new List<IUsfmNode>();
         switch (token.Type)
         {
             case "id":
                 SplitText(token.Value, out var bookSplit);
                 var book = new BookNode("id", bookSplit.Type.ToString(), bookSplit.Value.ToString());
-                nodes.Add(book);
+                state.Add(book);
                 break;
             case "c":
-                nodes.Add(new ChapterNode("c", token.Value.ToString()));
+                state.Add(new ChapterNode("c", token.Value.ToString()));
                 break;
             case "v":
                 SplitText(token.Value, out var verseSplit);
-                nodes.Add(new VerseNode("v", verseSplit.Type.ToString()));
+                state.Add(new VerseNode("v", verseSplit.Type.ToString()));
                 if (!verseSplit.Value.IsEmpty)
                 {
-                    nodes.Add(new LineBreakNode(" "));
-                    nodes.Add(new TextNode(verseSplit.Value.ToString()));
+                    state.Add(new LineBreakNode(" "));
+                    state.Add(new TextNode(verseSplit.Value.ToString()));
                 }
                 else if (!token.Value.IsEmpty && token.Value[token.Value.Length - 1] == ' ')
                 {
                     // Preserve a trailing space after a verse marker when the next token is an inline marker
-                    nodes.Add(new LineBreakNode(" "));
+                    state.Add(new LineBreakNode(" "));
                 }
                 break;
             default:
-                HandleMilestone(token, nodes);
+                HandleMilestone(token, state);
                 break;
         }
-        return nodes;
     }
 
     // Handle attribute-based milestones (like \qt-s, \ts-s, etc.)
-    private static void HandleMilestone(UsfmToken token, List<IUsfmNode> nodes)
+    private static void HandleMilestone(UsfmToken token, ParserState state)
     {
         if (token.Value.IsEmpty)
             return;
@@ -174,21 +122,27 @@ public partial class UsfmParser
         {
             var startIndex = token.Value[0] == '|' ? 1 : 0;
             var attributes = UsfmAttributeParser.Parse(token.Value, out int textStartIndex);
-            nodes.Add(new MilestoneNode(token.Type.ToString(), attributes));
+            state.Add(new MilestoneNode(token.Type.ToString(), attributes));
             // If there is text after the \* delimiter, add it as a TextNode
             if (textStartIndex != -1 && textStartIndex < token.Value.Length)
             {
                 var remainingText = token.Value[textStartIndex..];
                 if (!remainingText.IsEmpty)
                 {
-                    nodes.Add(new TextNode(remainingText.ToString()));
+                    // If the remaining text begins with no whitespace but the milestone is adjacent to prior text,
+                    // ensure we add a single space so concatenation matches original line spacing.
+                    if (!char.IsWhiteSpace(remainingText[0]) && !state.HasInline())
+                    {
+                        state.Add(new TextNode(" "));
+                    }
+                    state.Add(new TextNode(remainingText.ToString()));
                 }
             }
         }
         else
         {
             //state.Add(new SeparatorNode(" "));
-            nodes.Add(new TextNode(token.Value.ToString()));
+            state.Add(new TextNode(token.Value.ToString()));
         }
     }
 
