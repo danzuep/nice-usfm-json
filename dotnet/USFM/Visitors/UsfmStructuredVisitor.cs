@@ -9,7 +9,7 @@ public class UsfmStructuredVisitor : BaseStructuredVisitor<IUsfmNode>
         new ChapterNode(node.Style, node.Number);
 
     protected override IUsfmNode CreateVerse(VerseNode node, string vid) =>
-        new VerseNode(node.Style, node.Number);
+        new VerseNode(node.Style, node.Number, node.Text);
 
     protected override IUsfmNode CreatePara(ParaNode node, IList<IUsfmNode>? children) =>
         new ParaNode(node.Style, children);
@@ -23,9 +23,12 @@ public class UsfmStructuredVisitor : BaseStructuredVisitor<IUsfmNode>
     protected override IUsfmNode CreateNote(NoteNode node, IList<IUsfmNode>? children) =>
         new NoteNode(node.Style, node.Caller, children);
 
-    // Additional required overrides
+    protected IUsfmNode CreateAnnotation(AnnotationNode node) =>
+        new AnnotationNode(node.Style, node.Text, node.End);
+
     public override void Visit(MilestoneNode node) =>
         AddToResult(new MilestoneNode(node.Style, node.Attributes));
+
     public override void Visit(LineBreakNode node) =>
         AddToResult(new LineBreakNode(node.Style));
 

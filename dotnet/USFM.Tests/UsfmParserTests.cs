@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Reflection.PortableExecutable;
-using USFM.Visitors;
 
 namespace USFM.Tests
 {

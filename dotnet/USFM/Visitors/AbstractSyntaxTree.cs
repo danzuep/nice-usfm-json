@@ -1,11 +1,10 @@
-﻿using System.Reflection.Metadata;
-using System.Text;
-using static System.Net.Mime.MediaTypeNames;
+﻿using System.Text;
 
 namespace USFM.Visitors;
 
 public interface IUsfmVisitor
 {
+    //void Visit(AnnotationNode node);
     void Visit(BookNode node);
     void Visit(ChapterNode node);
     void Visit(VerseNode node);
@@ -35,6 +34,7 @@ public static class UsfmVisitorExtensions
             case NoteNode n: visitor.Visit(n); break;
             case LineBreakNode br: visitor.Visit(br); break;
             case MilestoneNode ms: visitor.Visit(ms); break;
+            //case AnnotationNode a: visitor.Visit(a); break;
             case BookNode b: visitor.Visit(b); break;
             case TableNode t: visitor.Visit(t); break;
             case RowNode r: visitor.Visit(r); break;
@@ -116,9 +116,16 @@ public sealed class VerseNode : IUsfmNode
 {
     public string Style { get; } = "v";
     public string Number { get; }
-    public VerseNode(string style, string number)
-        { Style = style; Number = number; }
-    public override string ToString() => $"\\{Style} {Number}";
+    public string? Text { get; }
+    public VerseNode(string style, string number, string? text = null)
+        { Style = style; Number = number; Text = text; }
+    public override string ToString()
+    {
+        if (string.IsNullOrEmpty(Text))
+            return $"\\{Style} {Number}";
+        else
+            return $"\\{Style} {Number} {Text}";
+    }
 }
 
 public sealed class ParaNode : IUsfmNode
@@ -283,6 +290,16 @@ public sealed class MilestoneNode : IUsfmNode
         }
         return sb.ToString();
     }
+}
+
+public sealed class AnnotationNode : IUsfmNode
+{
+    public string Style { get; }
+    public string Text { get; }
+    public string End { get; }
+    public AnnotationNode(string style, string text, string? end = null)
+        { Style = style; Text = text; End = end ?? $"\\{Style}*"; }
+    public override string ToString() => $"\\{Style} {Text}{End}";
 }
 
 public sealed class LineBreakNode : IUsfmNode

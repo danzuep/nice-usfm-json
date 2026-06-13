@@ -78,6 +78,7 @@ public partial class UsfmParser
         }
 
         state.ClosePara();
+        //state.Add(new LineBreakNode());
         return state.Root;
     }
 
@@ -86,26 +87,14 @@ public partial class UsfmParser
         switch (token.Type)
         {
             case "id":
-                SplitText(token.Value, out var bookSplit);
-                var book = new BookNode("id", bookSplit.Type.ToString(), bookSplit.Value.ToString());
+                var book = new BookNode("id", token.Value.ToString(), token.Extra.ToString());
                 state.Add(book);
                 break;
             case "c":
                 state.Add(new ChapterNode("c", token.Value.ToString()));
                 break;
             case "v":
-                SplitText(token.Value, out var verseSplit);
-                state.Add(new VerseNode("v", verseSplit.Type.ToString()));
-                if (!verseSplit.Value.IsEmpty)
-                {
-                    state.Add(new LineBreakNode(" "));
-                    state.Add(new TextNode(verseSplit.Value.ToString()));
-                }
-                else if (!token.Value.IsEmpty && token.Value[token.Value.Length - 1] == ' ')
-                {
-                    // Preserve a trailing space after a verse marker when the next token is an inline marker
-                    state.Add(new LineBreakNode(" "));
-                }
+                state.Add(new VerseNode("v", token.Value.ToString(), token.Extra.ToString()));
                 break;
             default:
                 HandleMilestone(token, state);
@@ -143,21 +132,6 @@ public partial class UsfmParser
         {
             //state.Add(new SeparatorNode(" "));
             state.Add(new TextNode(token.Value.ToString()));
-        }
-    }
-
-    private static void SplitText(ReadOnlySpan<char> input, out UsfmToken token, char splitChar = ' ')
-    {
-        var nextSpace = input.IndexOf(splitChar);
-        if (nextSpace != -1)
-        {
-            var text = input[..nextSpace];
-            var remaining = input[(nextSpace + 1)..];
-            token = new UsfmToken(text, remaining);
-        }
-        else
-        {
-            token = new UsfmToken(input);
         }
     }
 
