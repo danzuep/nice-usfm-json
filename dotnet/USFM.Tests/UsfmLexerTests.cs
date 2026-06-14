@@ -2,7 +2,7 @@ using USFM.Visitors;
 
 namespace USFM.Tests;
 
-public class UsfmTokenizerTests
+public class UsfmLexerTests
 {
     [Test]
     public async Task Verse()
@@ -116,6 +116,46 @@ public class UsfmTokenizerTests
         while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
 
         // Ensure we don't see duplicate marker names in the concatenated output
+        var concatenated = string.Concat(tokenStrings.Select(t => t.Type + ":" + t.Value + ";"));
+        await Assert.That(concatenated).DoesNotContain("w\\w*");
+    }
+
+    [Test]
+    public async Task MilestoneMarker()
+    {
+        var expected = "\\ms +\\nd 1\\ms*";
+        var tokens = UsfmTokenDto.Tokenize(expected);
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That($"{tokens[i]}").IsEqualTo(expected[i]);
+        }
+    }
+
+    [Test]
+    public async Task MilestoneMarker2()
+    {
+        var input = "\\ms +\\nd 1\\ms*";
+        var tokenizer = new UsfmLexer(input.AsSpan());
+        var tokenStrings = new List<(string Type, string Value)>();
+        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
+
+        await Assert.That(tokenStrings).IsNotNull();
+        var ms = tokenStrings.FirstOrDefault(t => t.Type == "ms");
+        await Assert.That(ms.Type).IsEqualTo("ms");
+        await Assert.That(ms.Value).Contains("+\\nd 1");
+    }
+
+    [Test]
+    public async Task AdjacentInlineMarkers()
+    {
+        var input = "\\v 1 start \\w one|lemma=\"one\" \\w*\\w two|lemma=\"two\" \\w* end";
+        var tokenizer = new UsfmLexer(input.AsSpan());
+        var tokenStrings = new List<(string Type, string Value)>();
+        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
+
+        // Ensure each inline word marker appears once and closers are not duplicated
+        var wCount = tokenStrings.Count(t => t.Type == "w");
+        await Assert.That(wCount).IsEqualTo(2);
         var concatenated = string.Concat(tokenStrings.Select(t => t.Type + ":" + t.Value + ";"));
         await Assert.That(concatenated).DoesNotContain("w\\w*");
     }

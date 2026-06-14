@@ -68,8 +68,23 @@ public ref struct UsfmLexer
         }
         else
         {
-            token = new UsfmToken(marker, remaining[..nextBackslash]);
-            _remaining = remaining.Slice(nextBackslash);
+            var endMarker = remaining.IndexOf(marker);
+            if (endMarker > nextBackslash &&
+                CheckChar(remaining, endMarker + marker.Length))
+            {
+                endMarker += marker.Length;
+                if (CheckNextWhiteSpace(remaining, ++endMarker))
+                {
+                    endMarker++;
+                }
+                token = new UsfmToken(marker, remaining[..endMarker]);
+                _remaining = remaining.Slice(endMarker);
+            }
+            else
+            {
+                token = new UsfmToken(marker, remaining[..nextBackslash]);
+                _remaining = remaining.Slice(nextBackslash);
+            }
         }
 
         var nextAsterisk = remaining.IndexOf(Asterisk);
@@ -102,37 +117,15 @@ public ref struct UsfmLexer
         _remaining = remaining.Slice(nextBackslash);
     }
 
-    //private void GetAsterisk(ReadOnlySpan<char> remaining, int nextBackslash)
-    //{
-    //    var nextAsterisk = remaining.IndexOf(Asterisk);
-    //    if (nextAsterisk != -1)
-    //    {
-    //        var backslashBeforeAsterisk = nextAsterisk - 1;
-    //        while (backslashBeforeAsterisk > 0 &&
-    //            !remaining[backslashBeforeAsterisk].Equals(Backslash) &&
-    //            !char.IsWhiteSpace(remaining[backslashBeforeAsterisk]))
-    //        {
-    //            backslashBeforeAsterisk--;
-    //        }
-    //        if (nextBackslash == backslashBeforeAsterisk)
-    //        {
-    //            var valueSpan = remaining[..nextBackslash];
-    //            var asteriskSlice = remaining.Slice(nextAsterisk);
-    //            var anotherBackslash = asteriskSlice.IndexOf(Backslash);
-    //            var extraIndex = anotherBackslash != -1 ? anotherBackslash : 1;
-    //            if (anotherBackslash == -1)
-    //            {
-    //                var nextSpace = asteriskSlice.IndexOf(Space);
-    //                if (nextSpace != -1)
-    //                {
-    //                    extraIndex += nextSpace;
-    //                }
-    //            }
-    //            var extraSpanEnd = nextAsterisk + extraIndex;
-    //            var extraSpan = remaining[nextBackslash..extraSpanEnd];
-    //        }
-    //    }
-    //}
+    private bool CheckChar(ReadOnlySpan<char> span, int index, char target = Asterisk)
+    {
+        return index < span.Length && span[index] == target;
+    }
+
+    private bool CheckNextWhiteSpace(ReadOnlySpan<char> span, int index)
+    {
+        return index < span.Length && char.IsWhiteSpace(span[index]);
+    }
 
     private void GetTypeValueSplit(out UsfmToken token)
     {
@@ -143,7 +136,7 @@ public ref struct UsfmLexer
         }
 
         var remainingStart = index + 1;
-        if (remainingStart == _remaining.Length)
+        if (remainingStart >= _remaining.Length)
             remainingStart = index;
 
         var marker = _remaining[1..index];
