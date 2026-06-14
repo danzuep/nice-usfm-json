@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.*" />
+    <PackageReference Include="TUnit.Engine" Version="1.54.0" ExcludeAssets="build" />
   </ItemGroup>
 
   <ItemGroup>
