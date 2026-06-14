@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
@@ -12,7 +12,7 @@
     <!-- Prevent importing TUnit's MSBuild buildTransitive targets (which bring
          Microsoft.Testing.Platform.MSBuild) on SDKs where they are incompatible.
          We still consume the runtime/test assemblies but exclude the build assets. -->
-    <PackageReference Include="TUnit.Engine" Version="1.54.0" ExcludeAssets="build" />
+    <PackageReference Include="TUnit.Engine" Version="1.*" ExcludeAssets="build" />
   </ItemGroup>
 
   <ItemGroup>

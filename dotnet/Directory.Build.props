@@ -8,12 +8,13 @@
           compatible with .NET 10 SDK. Disable it so `dotnet test` uses the
           new test experience. If you need the legacy runner for older SDKs,
           set this to true on that environment only. -->
-        <UseMicrosoftTestingPlatformRunner>false</UseMicrosoftTestingPlatformRunner>
-            <!-- Ensure the Microsoft Testing Platform targets do not treat this project
-              as a testing-platform application on .NET 10 SDKs. Setting
-              IsTestingPlatformApplication to false prevents the package targets
-              from throwing a hard error during the build. -->
-            <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+           <UseMicrosoftTestingPlatformRunner>false</UseMicrosoftTestingPlatformRunner>
+           <!-- Disable the VSTest-focused MTP support to avoid importing the
+             incompatible VSTest targets on .NET 10 SDK. -->
+           <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+           <!-- Ensure the Microsoft Testing Platform targets do not treat this project
+             as a testing-platform application on .NET 10 SDKs. -->
+           <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
   </PropertyGroup>
 
   <ItemGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
