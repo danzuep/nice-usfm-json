@@ -7,57 +7,60 @@ public class UsfmTokenizerTests
     [Test]
     public async Task Verse()
     {
-        var input = @"\v 1 verse";
-        var token = GetFirstToken(input);
+        var expected = @"\v 1 verse";
+        var token = GetFirstToken(expected);
         var node = new VerseNode(token.Type.ToString(), token.Value.ToString(), token.Extra.ToString());
-        await Assert.That(node?.ToString()).IsEqualTo(input);
+        await Assert.That(node?.ToString()).IsEqualTo(expected);
     }
 
     [Test]
     public async Task WordAnnotation()
     {
-        var input = @"\w gracious|lemma=""grace"" \w*";
+        var expected = @"\w gracious|lemma=""grace"" \w*";
+        var input = @$"{expected}Next";
         var token = GetFirstToken(input);
         var node = new AnnotationNode(token.Type.ToString(), token.Value.ToString(), token.Extra.ToString());
-        await Assert.That(node?.ToString()).IsEqualTo(input);
+        await Assert.That(node?.ToString()).IsEqualTo(expected);
     }
 
     [Test]
     public async Task ChapterVerse()
     {
-        var input = @"\v 1 \va 3\va* \vp 1b\vp* This";
-        var tokenizer = new UsfmTokenizer(input.AsSpan());
-
-        var nodes = new List<IUsfmNode>();
-        while (tokenizer.TryMoveNext(out var token))
+        var expected = new string[]
         {
-            switch (token.Type)
-            {
-                case var type when type.IsEmpty:
-                    nodes.Add(new TextNode(token.Value.ToString()));
-                    break;
-                case "v":
-                    nodes.Add(new VerseNode(token.Type.ToString(), token.Value.ToString()));
-                    break;
-                default:
-                    nodes.Add(new AnnotationNode(token.Type.ToString(), token.Value.ToString(), token.Extra.ToString()));
-                    break;
-            }
+            @"\v 1 ",
+            @"\va 3\va* ",
+            @"\vp 1b\vp* ",
+            "This *"
+        };
+        var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
         }
+    }
 
-        await Assert.That(nodes).IsNotEmpty();
-        await Assert.That(nodes.Count).IsEqualTo(4);
-        await Assert.That($"{nodes[0]}").StartsWith(@"\v 1");
-        await Assert.That($"{nodes[1]}").StartsWith(@"\va 3\va*");
-        await Assert.That($"{nodes[2]}").StartsWith(@"\vp 1b\vp*");
-        await Assert.That($"{nodes[3]}").IsEqualTo(@"This");
+    [Test]
+    public async Task SectionAnnotation()
+    {
+        var expected = new string[]
+        {
+            @"\s ",
+            @"\jmp |link-id=""article-john_the_baptist"" \jmp*",
+            "John the Baptist"
+        };
+        var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
+        }
     }
 
     [Test]
     public async Task MarkerWithAttributesAndText()
     {
         var input = "\\x - \\xo 2.23: \\xt Mrk 1.24; Luk 2.39; Jhn 1.45.\\x*and made his home in a town named Nazareth.";
-        var tokenizer = new UsfmTokenizer(input.AsSpan());
+        var tokenizer = new UsfmLexer(input.AsSpan());
 
         // collect pure strings from tokenizer (do not preserve ref structs across awaits)
         var tokenStrings = new List<(string Type, string Value)>();
@@ -76,7 +79,7 @@ public class UsfmTokenizerTests
     public async Task QuoteWithAttributes()
     {
         var input = "\\qt-s |sid=\"qt_123\" who=\"Pilate\" \\*“Are you the king of the Jews?\\qt-e |eid=\"qt_123\" \\*";
-        var tokenizer = new UsfmTokenizer(input.AsSpan());
+        var tokenizer = new UsfmLexer(input.AsSpan());
 
         var tokenStrings = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
@@ -91,7 +94,7 @@ public class UsfmTokenizerTests
     public async Task SimpleMarkerAndText()
     {
         var input = "\\v 2 the second verse \\w gracious|lemma=\"grace\" \\w*";
-        var tokenizer = new UsfmTokenizer(input.AsSpan());
+        var tokenizer = new UsfmLexer(input.AsSpan());
         var tokenStrings = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
 
@@ -108,7 +111,7 @@ public class UsfmTokenizerTests
     public async Task MarkersDoNotDuplicateClosers()
     {
         var input = "\\v 2 the second verse \\w gracious|lemma=\"grace\" \\w*";
-        var tokenizer = new UsfmTokenizer(input.AsSpan());
+        var tokenizer = new UsfmLexer(input.AsSpan());
         var tokenStrings = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
 
@@ -119,8 +122,8 @@ public class UsfmTokenizerTests
 
     private static UsfmToken GetFirstToken(string input)
     {
-        var tokenizer = new UsfmTokenizer(input.AsSpan());
-        _ = tokenizer.TryMoveNext(out var usfmTokenizer);
-        return usfmTokenizer;
+        var tokenizer = new UsfmLexer(input.AsSpan());
+        _ = tokenizer.TryMoveNext(out var usfmToken);
+        return usfmToken;
     }
 }

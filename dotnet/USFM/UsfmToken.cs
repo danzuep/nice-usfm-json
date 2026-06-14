@@ -1,4 +1,6 @@
-﻿namespace USFM;
+﻿using static System.Net.Mime.MediaTypeNames;
+
+namespace USFM;
 
 public readonly ref struct UsfmToken
 {
@@ -10,16 +12,43 @@ public readonly ref struct UsfmToken
     public override string ToString() => $"\\{Type} {Value}{Extra}";
 }
 
-internal record UsfmTokenRecord
+internal sealed class UsfmTokenDto
 {
-    public string Type { get; }
+    public string Style { get; }
     public string Value { get; }
     public string Extra { get; }
-    public UsfmTokenRecord(UsfmToken usfmToken)
+    public UsfmTokenDto(UsfmToken usfmToken)
     {
-        Type = usfmToken.Type.ToString();
+        Style = usfmToken.Type.ToString();
         Value = usfmToken.Value.ToString();
         Extra = usfmToken.Extra.ToString();
     }
-    public override string ToString() => $"\\{Type} {Value}{Extra}";
+    public static IReadOnlyList<UsfmTokenDto> Tokenize(string input)
+    {
+        var tokens = new List<UsfmTokenDto>();
+        var tokenizer = new UsfmLexer(input.AsSpan());
+        while (tokenizer.TryMoveNext(out var usfmToken))
+        {
+            tokens.Add(new UsfmTokenDto(usfmToken));
+        }
+        return tokens;
+    }
+    public static UsfmTokenDto Get(string input, short index = 0)
+    {
+        var count = 0;
+        var tokenizer = new UsfmLexer(input.AsSpan());
+        UsfmToken usfmToken;
+        while (tokenizer.TryMoveNext(out usfmToken) && count < index)
+        {
+            count++;
+        }
+        return new UsfmTokenDto(usfmToken);
+    }
+    public override string ToString()
+    {
+        if (string.IsNullOrEmpty(Style))
+            return $"{Value}{Extra}";
+        else
+            return $"\\{Style} {Value}{Extra}";
+    }
 }

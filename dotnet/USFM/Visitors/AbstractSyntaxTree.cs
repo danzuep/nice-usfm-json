@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace USFM.Visitors;
 
@@ -299,7 +300,13 @@ public sealed class AnnotationNode : IUsfmNode
     public string End { get; }
     public AnnotationNode(string style, string text, string? end = null)
         { Style = style; Text = text; End = end ?? $"\\{Style}*"; }
-    public override string ToString() => $"\\{Style} {Text}{End}";
+    public override string ToString()
+    {
+        if (string.IsNullOrEmpty(Style))
+            return $"{Text}{End}";
+        else
+            return $"\\{Style} {Text}{End}";
+    }
 }
 
 public sealed class LineBreakNode : IUsfmNode

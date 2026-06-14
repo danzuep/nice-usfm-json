@@ -38,7 +38,7 @@ public partial class UsfmParser
     public static IReadOnlyList<IUsfmNode> Parse(ReadOnlySpan<char> usfmData)
     {
         var state = new ParserState();
-        var tokenizer = new UsfmTokenizer(usfmData);
+        var tokenizer = new UsfmLexer(usfmData);
 
         while (tokenizer.TryMoveNext(out var token))
         {

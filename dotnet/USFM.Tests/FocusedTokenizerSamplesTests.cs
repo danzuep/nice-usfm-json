@@ -18,7 +18,7 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("cross-refs"));
         var line = all.First(l => l.StartsWith("\\v 3"));
-        var tokenizer = new UsfmTokenizer(line.AsSpan());
+        var tokenizer = new UsfmLexer(line.AsSpan());
         var parts = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
 
@@ -34,7 +34,7 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("milestones"));
         var line = all.First(l => l.StartsWith("\\qt-s"));
-        var tokenizer = new UsfmTokenizer(line.AsSpan());
+        var tokenizer = new UsfmLexer(line.AsSpan());
         var parts = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
 
@@ -50,7 +50,7 @@ public class FocusedTokenizerSamplesTests
     {
         var lines = File.ReadAllLines(SamplePath("footnote"));
         var line = lines.First(l => l.StartsWith("\\v 3"));
-        var tokenizer = new UsfmTokenizer(line.AsSpan());
+        var tokenizer = new UsfmLexer(line.AsSpan());
         var parts = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
 
@@ -66,7 +66,7 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("default-attributes"));
         var line = all.First(l => l.Contains("\\w "));
-        var tokenizer = new UsfmTokenizer(line.AsSpan());
+        var tokenizer = new UsfmLexer(line.AsSpan());
         var parts = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
 
@@ -82,7 +82,7 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("table"));
         var line = all.First(l => l.StartsWith("\\tr "));
-        var tokenizer = new UsfmTokenizer(line.AsSpan());
+        var tokenizer = new UsfmLexer(line.AsSpan());
         var parts = new List<(string Type, string Value)>();
         while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
 
