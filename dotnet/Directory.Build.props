@@ -4,17 +4,6 @@
   <PropertyGroup>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-        <!-- The legacy Microsoft Testing Platform runner (VSTest targets) is not
-          compatible with .NET 10 SDK. Disable it so `dotnet test` uses the
-          new test experience. If you need the legacy runner for older SDKs,
-          set this to true on that environment only. -->
-           <UseMicrosoftTestingPlatformRunner>false</UseMicrosoftTestingPlatformRunner>
-           <!-- Disable the VSTest-focused MTP support to avoid importing the
-             incompatible VSTest targets on .NET 10 SDK. -->
-           <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
-           <!-- Ensure the Microsoft Testing Platform targets do not treat this project
-             as a testing-platform application on .NET 10 SDKs. -->
-           <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
   </PropertyGroup>
 
   <ItemGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">

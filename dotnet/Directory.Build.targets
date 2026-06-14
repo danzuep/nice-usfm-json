@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <!-- Ensure the Microsoft Testing Platform MSBuild targets do not define
-         their custom Test target on SDKs where they are incompatible. Setting
-         these properties in Directory.Build.targets ensures they are applied
-         after package imports. -->
-    <TestingPlatformDisableCustomTestTarget>true</TestingPlatformDisableCustomTestTarget>
-    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
-    <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <!--<TestingPlatformDisableCustomTestTarget>true</TestingPlatformDisableCustomTestTarget>-->
+    <!--<IsTestingPlatformApplication>false</IsTestingPlatformApplication>-->
+    <!--<TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>-->
   </PropertyGroup>
 </Project>
