@@ -34,6 +34,7 @@ public class UsfmLexerTests
             "This *"
         };
         var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
+
         for (int i = 0; i < tokens.Count; i++)
         {
             await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
@@ -50,6 +51,7 @@ public class UsfmLexerTests
             "John the Baptist"
         };
         var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
+
         for (int i = 0; i < tokens.Count; i++)
         {
             await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
@@ -59,65 +61,64 @@ public class UsfmLexerTests
     [Test]
     public async Task MarkerWithAttributesAndText()
     {
-        var input = "\\x - \\xo 2.23: \\xt Mrk 1.24; Luk 2.39; Jhn 1.45.\\x*and made his home in a town named Nazareth.";
-        var tokenizer = new UsfmLexer(input.AsSpan());
+        var expected = new string[]
+        {
+            @"\x - ",
+            @"\xo 2.23: ",
+            @"\xt Mrk 1.24; ",
+            @"\xt Luk 2.39; ",
+            @"\xt Jhn 1.45.\x*",
+            "and made his home in a town named Nazareth."
+        };
+        var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
 
-        // collect pure strings from tokenizer (do not preserve ref structs across awaits)
-        var tokenStrings = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
+        }
+    }
 
-        await Assert.That(tokenStrings).IsNotNull();
-        // find an \x marker token and ensure nested markers like \xo appear in the stream
-        var x = tokenStrings.FirstOrDefault(t => t.Type == "x");
-        await Assert.That(x.Type).IsEqualTo("x");
-        // ensure there is an \xo token following somewhere
-        var hasXo = tokenStrings.Any(t => t.Type == "xo");
-        await Assert.That(hasXo).IsTrue();
+    [Test]
+    public async Task QuoteEnd()
+    {
+        var expected = @"\qt-e |eid=""qt_123"" \*";
+        var token = UsfmTokenDto.Tokenize(expected).Single();
+
+        await Assert.That(token.ToString()).IsEqualTo(expected);
     }
 
     [Test]
     public async Task QuoteWithAttributes()
     {
-        var input = "\\qt-s |sid=\"qt_123\" who=\"Pilate\" \\*“Are you the king of the Jews?\\qt-e |eid=\"qt_123\" \\*";
-        var tokenizer = new UsfmLexer(input.AsSpan());
+        var expected = new string[]
+        {
+            @"\qt-s |sid=""qt_123"" who=""Pilate"" \*",
+            "Are you the king of the Jews?",
+            @"\qt-e |eid=""qt_123"" \*"
+        };
+        var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
 
-        var tokenStrings = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
-
-        await Assert.That(tokenStrings).IsNotNull();
-        var qt = tokenStrings.FirstOrDefault(t => t.Type.StartsWith("qt-s"));
-        await Assert.That(qt.Type).Contains("qt-s");
-        await Assert.That(qt.Value).Contains("sid=\"qt_123\"");
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
+        }
     }
 
     [Test]
-    public async Task SimpleMarkerAndText()
+    public async Task MarkerAndText()
     {
-        var input = "\\v 2 the second verse \\w gracious|lemma=\"grace\" \\w*";
-        var tokenizer = new UsfmLexer(input.AsSpan());
-        var tokenStrings = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
+        var expected = new string[]
+        {
+            @"\v 2 the second verse ",
+            @"\w gracious|lemma=""grace"" \w*"
+        };
+        var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
 
-        await Assert.That(tokenStrings).IsNotNull();
-        var v = tokenStrings.FirstOrDefault(t => t.Type == "v");
-        var w = tokenStrings.FirstOrDefault(t => t.Type == "w");
-        await Assert.That(v.Type).IsEqualTo("v");
-        await Assert.That(v.Value).Contains("2 the second verse");
-        await Assert.That(w.Type).IsEqualTo("w");
-        await Assert.That(w.Value).Contains("gracious|lemma=");
-    }
-
-    [Test]
-    public async Task MarkersDoNotDuplicateClosers()
-    {
-        var input = "\\v 2 the second verse \\w gracious|lemma=\"grace\" \\w*";
-        var tokenizer = new UsfmLexer(input.AsSpan());
-        var tokenStrings = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
-
-        // Ensure we don't see duplicate marker names in the concatenated output
-        var concatenated = string.Concat(tokenStrings.Select(t => t.Type + ":" + t.Value + ";"));
-        await Assert.That(concatenated).DoesNotContain("w\\w*");
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
+        }
+        await Assert.That(tokens[1].Value).IsEqualTo("gracious|lemma=\"grace\" ");
     }
 
     [Test]
@@ -125,6 +126,7 @@ public class UsfmLexerTests
     {
         var expected = "\\ms +\\nd 1\\ms*";
         var token = UsfmTokenDto.Tokenize(expected).Single();
+
         await Assert.That($"{token}").IsEqualTo(expected);
         await Assert.That(token.Style).IsEqualTo("ms");
         await Assert.That(token.Value).IsEqualTo("+\\nd 1");
@@ -142,6 +144,7 @@ public class UsfmLexerTests
             "end"
         };
         var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
+
         for (int i = 0; i < tokens.Count; i++)
         {
             await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);

@@ -66,54 +66,26 @@ public ref struct UsfmLexer
             _remaining = ReadOnlySpan<char>.Empty;
             return;
         }
-        else
-        {
-            var endMarker = remaining.IndexOf(marker);
-            if (endMarker > nextBackslash &&
-                CheckChar(remaining, endMarker + marker.Length))
-            {
-                var spanEnd = endMarker-- + marker.Length;
-                if (CheckNextWhiteSpace(remaining, ++spanEnd))
-                {
-                    spanEnd++;
-                }
-                var valueSpan = remaining[..endMarker];
-                var extraSpan = remaining[endMarker..spanEnd];
-                token = new UsfmToken(marker, valueSpan, extraSpan);
-                _remaining = remaining.Slice(spanEnd);
-                return;
-            }
-            else
-            {
-                token = new UsfmToken(marker, remaining[..nextBackslash]);
-                _remaining = remaining.Slice(nextBackslash);
-            }
-        }
 
-        var nextAsterisk = remaining.IndexOf(Asterisk);
-        if (nextAsterisk != -1)
+        var endMarkerIndex = remaining.IndexOf(marker);
+        if (endMarkerIndex == -1 &&
+            EndMarkerCheck(backslashToken, out token))
         {
-            var backslashBeforeAsterisk = nextAsterisk - 1;
-            while (backslashBeforeAsterisk > 0 &&
-                !remaining[backslashBeforeAsterisk].Equals(Backslash) &&
-                !char.IsWhiteSpace(remaining[backslashBeforeAsterisk]))
+            return;
+        }
+        if (endMarkerIndex >= nextBackslash &&
+            CheckChar(remaining, endMarkerIndex + marker.Length))
+        {
+            var spanEnd = endMarkerIndex-- + marker.Length;
+            if (CheckNextWhiteSpace(remaining, ++spanEnd))
             {
-                backslashBeforeAsterisk--;
+                spanEnd++;
             }
-            var extraSpanEnd = nextAsterisk + 1;
-            if (nextBackslash == backslashBeforeAsterisk && extraSpanEnd < remaining.Length)
-            {
-                var valueSpan = remaining[..nextBackslash];
-                var isWhiteSpaceNext = char.IsWhiteSpace(remaining[extraSpanEnd]);
-                if (isWhiteSpaceNext && extraSpanEnd + 1 < remaining.Length)
-                {
-                    extraSpanEnd++;
-                }
-                var extraSpan = remaining[nextBackslash..extraSpanEnd];
-                token = new UsfmToken(marker, valueSpan, extraSpan);
-                _remaining = remaining.Slice(extraSpanEnd);
-                return;
-            }
+            var valueSpan = remaining[..endMarkerIndex];
+            var extraSpan = remaining[endMarkerIndex..spanEnd];
+            token = new UsfmToken(marker, valueSpan, extraSpan);
+            _remaining = remaining.Slice(spanEnd);
+            return;
         }
 
         token = new UsfmToken(marker, remaining[..nextBackslash]);
@@ -128,6 +100,34 @@ public ref struct UsfmLexer
     private bool CheckNextWhiteSpace(ReadOnlySpan<char> span, int index)
     {
         return index < span.Length && char.IsWhiteSpace(span[index]);
+    }
+
+    private bool EndMarkerCheck(UsfmToken original, out UsfmToken result)
+    {
+        var span = original.Value;
+        var nextAsterisk = span.IndexOf(Asterisk);
+        if (nextAsterisk == -1)
+        {
+            result = default;
+            return false;
+        }
+        var endMarkerIndex = nextAsterisk - 1;
+        while (endMarkerIndex > 0 &&
+            !span[endMarkerIndex].Equals(Backslash) &&
+            !char.IsWhiteSpace(span[endMarkerIndex]))
+        {
+            endMarkerIndex--;
+        }
+        var spanEnd = nextAsterisk + 1;
+        if (CheckNextWhiteSpace(span, spanEnd))
+        {
+            spanEnd++;
+        }
+        var valueSpan = span[..endMarkerIndex];
+        var extraSpan = span[endMarkerIndex..spanEnd];
+        result = new UsfmToken(original.Type, valueSpan, extraSpan);
+        _remaining = span.Slice(spanEnd);
+        return true;
     }
 
     private void GetTypeValueSplit(out UsfmToken token)
