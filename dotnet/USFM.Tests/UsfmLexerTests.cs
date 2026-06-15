@@ -124,40 +124,28 @@ public class UsfmLexerTests
     public async Task MilestoneMarker()
     {
         var expected = "\\ms +\\nd 1\\ms*";
-        var tokens = UsfmTokenDto.Tokenize(expected);
-        for (int i = 0; i < tokens.Count; i++)
-        {
-            await Assert.That($"{tokens[i]}").IsEqualTo(expected[i]);
-        }
-    }
-
-    [Test]
-    public async Task MilestoneMarker2()
-    {
-        var input = "\\ms +\\nd 1\\ms*";
-        var tokenizer = new UsfmLexer(input.AsSpan());
-        var tokenStrings = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
-
-        await Assert.That(tokenStrings).IsNotNull();
-        var ms = tokenStrings.FirstOrDefault(t => t.Type == "ms");
-        await Assert.That(ms.Type).IsEqualTo("ms");
-        await Assert.That(ms.Value).Contains("+\\nd 1");
+        var token = UsfmTokenDto.Tokenize(expected).Single();
+        await Assert.That($"{token}").IsEqualTo(expected);
+        await Assert.That(token.Style).IsEqualTo("ms");
+        await Assert.That(token.Value).IsEqualTo("+\\nd 1");
+        await Assert.That(token.Extra).IsEqualTo("\\ms*");
     }
 
     [Test]
     public async Task AdjacentInlineMarkers()
     {
-        var input = "\\v 1 start \\w one|lemma=\"one\" \\w*\\w two|lemma=\"two\" \\w* end";
-        var tokenizer = new UsfmLexer(input.AsSpan());
-        var tokenStrings = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var tk)) tokenStrings.Add((tk.Type.ToString(), tk.Value.ToString()));
-
-        // Ensure each inline word marker appears once and closers are not duplicated
-        var wCount = tokenStrings.Count(t => t.Type == "w");
-        await Assert.That(wCount).IsEqualTo(2);
-        var concatenated = string.Concat(tokenStrings.Select(t => t.Type + ":" + t.Value + ";"));
-        await Assert.That(concatenated).DoesNotContain("w\\w*");
+        var expected = new string[]
+        {
+            "\\v 1 start ",
+            "\\w one|lemma=\"one\" \\w*",
+            "\\w two|lemma=\"two\" \\w* ",
+            "end"
+        };
+        var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
+        }
     }
 
     private static UsfmToken GetFirstToken(string input)

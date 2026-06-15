@@ -72,13 +72,16 @@ public ref struct UsfmLexer
             if (endMarker > nextBackslash &&
                 CheckChar(remaining, endMarker + marker.Length))
             {
-                endMarker += marker.Length;
-                if (CheckNextWhiteSpace(remaining, ++endMarker))
+                var spanEnd = endMarker-- + marker.Length;
+                if (CheckNextWhiteSpace(remaining, ++spanEnd))
                 {
-                    endMarker++;
+                    spanEnd++;
                 }
-                token = new UsfmToken(marker, remaining[..endMarker]);
-                _remaining = remaining.Slice(endMarker);
+                var valueSpan = remaining[..endMarker];
+                var extraSpan = remaining[endMarker..spanEnd];
+                token = new UsfmToken(marker, valueSpan, extraSpan);
+                _remaining = remaining.Slice(spanEnd);
+                return;
             }
             else
             {
