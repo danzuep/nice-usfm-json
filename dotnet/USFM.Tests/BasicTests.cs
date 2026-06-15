@@ -28,7 +28,7 @@ namespace USFM.Tests
             await Assert.That(actualDocument.Type).IsEqualTo(UsjDocument.UsjType);
             await Assert.That(actualDocument.Version).IsEqualTo(UsjDocument.UsjVersion);
             await Assert.That(actualDocument.Content).IsNotNull();
-            await Assert.That(actualDocument.Content.Count).IsEqualTo(4);
+            await Assert.That(actualDocument.Content.Count).IsEqualTo(5);
         }
 
         public static (string, Stream?) LoadEmbeddedFile(string resourceName)

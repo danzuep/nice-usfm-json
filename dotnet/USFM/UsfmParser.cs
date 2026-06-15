@@ -42,16 +42,14 @@ public partial class UsfmParser
 
         while (tokenizer.TryMoveNext(out var token))
         {
-            var dto = new UsfmTokenDto(token);
-            var style = token.Type.TrimStart('\\').TrimEnd(' ').TrimEnd('*');
-            var type = IdentifyMarker(style);
+            var type = IdentifyMarker(token.Style);
 
             switch (type)
             {
                 case UsfmMarkerType.Block:
-                    state.OpenPara(dto.Style);
+                    state.OpenPara(token.Style.ToString());
                     if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(dto.Value));
+                        state.Add(new TextNode(token.Value.ToString()));
                     break;
 
                 case UsfmMarkerType.Milestone:
@@ -61,20 +59,20 @@ public partial class UsfmParser
                 case UsfmMarkerType.Inline:
                     // For inline markers, if there is trailing value text, add it to the current context
                     if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(dto.Value));
+                        state.Add(new TextNode(token.Value.ToString()));
                     state.PushInline(); // Context for potential nested content
                     break;
 
                 case UsfmMarkerType.Closing:
                     var content = state.PopInline();
-                    state.Add(new CharNode(dto.Style, content));
+                    state.Add(new CharNode(token.Style.ToString(), content));
                     if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(dto.Value));
+                        state.Add(new TextNode(token.Value.ToString()));
                     break;
 
                 default: // Raw text tokens
                     if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(dto.Value));
+                        state.Add(new TextNode(token.Value.ToString()));
                     break;
             }
         }
@@ -86,8 +84,7 @@ public partial class UsfmParser
 
     private static void HandleMarker(UsfmToken token, ParserState state)
     {
-        var style = token.Type.TrimStart('\\').TrimEnd(' ').TrimEnd('*');
-        switch (style)
+        switch (token.Style)
         {
             case "id":
                 var book = new BookNode("id", token.Value.ToString(), token.Extra.ToString());
@@ -108,14 +105,13 @@ public partial class UsfmParser
     // Handle attribute-based milestones (like \qt-s, \ts-s, etc.)
     private static void HandleMilestone(UsfmToken token, ParserState state)
     {
-        var style = token.Type.TrimStart('\\').TrimEnd(' ').TrimEnd('*');
         if (token.Value.IsEmpty)
             return;
-        if (style.EndsWith("-s") || style.EndsWith("-e"))
+        if (token.Style.EndsWith("-s") || token.Style.EndsWith("-e"))
         {
             var startIndex = token.Value[0] == '|' ? 1 : 0;
             var attributes = UsfmAttributeParser.Parse(token.Value, out int textStartIndex);
-            state.Add(new MilestoneNode(style.ToString(), attributes));
+            state.Add(new MilestoneNode(token.Style.ToString(), attributes));
             // If there is text after the \* delimiter, add it as a TextNode
             if (textStartIndex != -1 && textStartIndex < token.Value.Length)
             {

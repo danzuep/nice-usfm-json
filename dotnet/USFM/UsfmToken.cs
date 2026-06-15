@@ -2,6 +2,7 @@
 
 public readonly ref struct UsfmToken
 {
+    public ReadOnlySpan<char> Style => Type.TrimStart('\\').TrimEnd(' ').TrimEnd('*');
     public ReadOnlySpan<char> Type { get; }
     public ReadOnlySpan<char> Value { get; }
     public ReadOnlySpan<char> Extra { get; }

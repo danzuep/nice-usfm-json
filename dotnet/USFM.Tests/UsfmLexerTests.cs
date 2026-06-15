@@ -1,5 +1,3 @@
-using USFM.Visitors;
-
 namespace USFM.Tests;
 
 public class UsfmLexerTests
@@ -159,5 +157,23 @@ public class UsfmLexerTests
 
         await Assert.That(token.Value).IsEqualTo(expected[1]);
         await Assert.That(token.Extra).IsEqualTo(expected[2]);
+    }
+
+    [Test]
+    public async Task ChapterAttributes()
+    {
+        var expected = new string[]
+        {
+            @"\c 1",
+            @"\cl Matthew",
+            @"\ca 2\ca*",
+            @"\cp M"
+        };
+        var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
+
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            await Assert.That(tokens[i]?.ToString()).IsEqualTo(expected[i]);
+        }
     }
 }

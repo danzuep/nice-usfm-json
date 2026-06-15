@@ -34,15 +34,11 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("milestones"));
         var line = all.First(l => l.StartsWith("\\qt-s"));
-        var tokenizer = new UsfmLexer(line.AsSpan());
-        var parts = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
+        var token = UsfmTokenDto.Tokenize(line).First();
 
-        var qt = parts.FirstOrDefault(p => p.Type.StartsWith("qt-s"));
-        await Assert.That(qt.Type).Contains("qt-s");
-        await Assert.That(qt.Value).Contains("sid=");
-        // ensure the closing delimiter \* is present in the value
-        await Assert.That(qt.Value).Contains("\\*");
+        await Assert.That(token.Style).IsEqualTo("qt-s");
+        await Assert.That(token.Value).Contains("sid=");
+        await Assert.That(token.Extra).IsEqualTo("\\*");
     }
 
     [Test]
