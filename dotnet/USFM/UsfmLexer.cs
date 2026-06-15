@@ -30,18 +30,20 @@ public ref struct UsfmLexer
 
     internal static UsfmToken SplitValue(UsfmToken token, char splitChar = Space)
     {
-        UsfmToken result;
-        var input = token.Value;
-        var nextSpace = input.IndexOf(splitChar);
+        var result = token;
+        var span = token.Value;
+        var nextSpace = span.IndexOf(splitChar);
         if (nextSpace != -1)
         {
-            var text = input[..nextSpace];
-            var remaining = input[(nextSpace + 1)..];
-            result = new UsfmToken(token.Type, text, remaining);
-        }
-        else
-        {
-            result = new UsfmToken(token.Type, input);
+            var splitIndex = nextSpace + 1;
+            if (splitIndex >= span.Length)
+            {
+                splitIndex = nextSpace;
+            }
+
+            var value = span[..splitIndex];
+            var remaining = span[splitIndex..];
+            result = new UsfmToken(token.Type, value, remaining);
         }
         return result;
     }
@@ -128,12 +130,16 @@ public ref struct UsfmLexer
         }
 
         var spanEnd = nextAsterisk + 1;
-        if (spanEnd >= _remaining.Length)
+        if (spanEnd >= span.Length)
         {
             spanEnd = nextAsterisk;
         }
 
         if (char.IsWhiteSpace(span[spanEnd]))
+        {
+            spanEnd++;
+        }
+        else if (spanEnd == span.Length - 1)
         {
             spanEnd++;
         }
