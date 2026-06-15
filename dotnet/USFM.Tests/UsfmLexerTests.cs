@@ -122,7 +122,7 @@ public class UsfmLexerTests
         var token = UsfmTokenDto.Tokenize(expected).Single();
 
         await Assert.That($"{token}").IsEqualTo(expected);
-        await Assert.That(token.Style).IsEqualTo("\\ms ");
+        await Assert.That(token.Type).IsEqualTo("\\ms ");
         await Assert.That(token.Value).IsEqualTo("+\\nd 1");
         await Assert.That(token.Extra).IsEqualTo("\\ms*");
     }

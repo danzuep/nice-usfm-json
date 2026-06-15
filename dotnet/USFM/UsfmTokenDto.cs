@@ -1,6 +1,6 @@
 ﻿namespace USFM;
 
-internal sealed record UsfmTokenDto(string Style, string Value, string Extra)
+internal sealed record UsfmTokenDto(string Type, string Value, string Extra)
 {
     public UsfmTokenDto(UsfmToken usfmToken) : this(
         usfmToken.Type.ToString(),
@@ -8,6 +8,8 @@ internal sealed record UsfmTokenDto(string Style, string Value, string Extra)
         usfmToken.Extra.ToString())
     {
     }
+
+    public string Style => Type.TrimStart('\\').TrimEnd(' ').TrimEnd('*');
 
     public static IReadOnlyList<UsfmTokenDto> Tokenize(string input)
     {
@@ -20,5 +22,5 @@ internal sealed record UsfmTokenDto(string Style, string Value, string Extra)
         return tokens;
     }
 
-    public override string ToString() => $"{Style}{Value}{Extra}";
+    public override string ToString() => $"{Type}{Value}{Extra}";
 }
