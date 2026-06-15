@@ -67,12 +67,11 @@ public ref struct UsfmLexer
             return;
         }
 
-        var endMarkerIndex = remaining.IndexOf(marker);
-        if (endMarkerIndex == -1 &&
-            EndMarkerCheck(backslashToken, out token))
+        if (EndMarkerCheck(backslashToken, nextBackslash, out token))
         {
             return;
         }
+        var endMarkerIndex = remaining.IndexOf(marker);
         if (endMarkerIndex >= nextBackslash &&
             CheckChar(remaining, endMarkerIndex + marker.Length))
         {
@@ -102,7 +101,7 @@ public ref struct UsfmLexer
         return index < span.Length && char.IsWhiteSpace(span[index]);
     }
 
-    private bool EndMarkerCheck(UsfmToken original, out UsfmToken result)
+    private bool EndMarkerCheck(UsfmToken original, int nextBackslash, out UsfmToken result)
     {
         var span = original.Value;
         var nextAsterisk = span.IndexOf(Asterisk);
@@ -111,6 +110,7 @@ public ref struct UsfmLexer
             result = default;
             return false;
         }
+
         var endMarkerIndex = nextAsterisk - 1;
         while (endMarkerIndex > 0 &&
             !span[endMarkerIndex].Equals(Backslash) &&
@@ -118,11 +118,22 @@ public ref struct UsfmLexer
         {
             endMarkerIndex--;
         }
+
+        // Return early if the end marker doesn't match the start marker
+        var startMarker = span[(endMarkerIndex + 1)..nextAsterisk];
+        if (!startMarker.SequenceEqual(ReadOnlySpan<char>.Empty) &&
+            !startMarker.SequenceEqual(original.Type))
+        {
+            result = default;
+            return false;
+        }
+
         var spanEnd = nextAsterisk + 1;
         if (CheckNextWhiteSpace(span, spanEnd))
         {
             spanEnd++;
         }
+
         var valueSpan = span[..endMarkerIndex];
         var extraSpan = span[endMarkerIndex..spanEnd];
         result = new UsfmToken(original.Type, valueSpan, extraSpan);

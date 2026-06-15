@@ -8,8 +8,8 @@ public class UsfmLexerTests
     public async Task Verse()
     {
         var expected = @"\v 1 verse";
-        var token = GetFirstToken(expected);
-        var node = new VerseNode(token.Type.ToString(), token.Value.ToString(), token.Extra.ToString());
+        var token = UsfmTokenDto.Tokenize(expected).Single();
+        var node = new VerseNode(token.Style, token.Value, token.Extra);
         await Assert.That(node?.ToString()).IsEqualTo(expected);
     }
 
@@ -18,8 +18,8 @@ public class UsfmLexerTests
     {
         var expected = @"\w gracious|lemma=""grace"" \w*";
         var input = @$"{expected}Next";
-        var token = GetFirstToken(input);
-        var node = new AnnotationNode(token.Type.ToString(), token.Value.ToString(), token.Extra.ToString());
+        var token = UsfmTokenDto.Tokenize(expected).First();
+        var node = new AnnotationNode(token.Style, token.Value, token.Extra);
         await Assert.That(node?.ToString()).IsEqualTo(expected);
     }
 
@@ -63,11 +63,7 @@ public class UsfmLexerTests
     {
         var expected = new string[]
         {
-            @"\x - ",
-            @"\xo 2.23: ",
-            @"\xt Mrk 1.24; ",
-            @"\xt Luk 2.39; ",
-            @"\xt Jhn 1.45.\x*",
+            @"\x - \xo 2.23: \xt Mrk 1.24; \xt Luk 2.39; \xt Jhn 1.45.\x*",
             "and made his home in a town named Nazareth."
         };
         var tokens = UsfmTokenDto.Tokenize(string.Concat(expected));
@@ -151,10 +147,19 @@ public class UsfmLexerTests
         }
     }
 
-    private static UsfmToken GetFirstToken(string input)
+    [Test]
+    public async Task InlineWord()
     {
-        var tokenizer = new UsfmLexer(input.AsSpan());
-        _ = tokenizer.TryMoveNext(out var usfmToken);
-        return usfmToken;
+        var expected = new string[]
+        {
+            @"\w ",
+            @"two|lemma=""two"" ",
+            @"\w* ",
+            "end"
+        };
+        var token = UsfmTokenDto.Tokenize(string.Concat(expected)).First();
+
+        await Assert.That(token.Value).IsEqualTo(expected[1]);
+        await Assert.That(token.Extra).IsEqualTo(expected[2]);
     }
 }
