@@ -120,16 +120,20 @@ public ref struct UsfmLexer
         }
 
         // Return early if the end marker doesn't match the start marker
-        var startMarker = span[(endMarkerIndex + 1)..nextAsterisk];
-        if (!startMarker.SequenceEqual(ReadOnlySpan<char>.Empty) &&
-            !startMarker.SequenceEqual(original.Type))
+        var startMarker = span[endMarkerIndex..nextAsterisk];
+        if (!startMarker.IsEmpty && !original.Type.StartsWith(startMarker))
         {
             result = default;
             return false;
         }
 
         var spanEnd = nextAsterisk + 1;
-        if (CheckNextWhiteSpace(span, spanEnd))
+        if (spanEnd >= _remaining.Length)
+        {
+            spanEnd = nextAsterisk;
+        }
+
+        if (char.IsWhiteSpace(span[spanEnd]))
         {
             spanEnd++;
         }
@@ -151,9 +155,11 @@ public ref struct UsfmLexer
 
         var remainingStart = index + 1;
         if (remainingStart >= _remaining.Length)
+        {
             remainingStart = index;
+        }
 
-        var marker = _remaining[1..index];
+        var marker = _remaining[0..remainingStart];
         var remaining = _remaining[remainingStart..];
         token = new UsfmToken(marker, remaining);
     }

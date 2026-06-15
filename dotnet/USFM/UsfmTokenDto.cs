@@ -20,11 +20,5 @@ internal sealed record UsfmTokenDto(string Style, string Value, string Extra)
         return tokens;
     }
 
-    public override string ToString()
-    {
-        if (string.IsNullOrEmpty(Style))
-            return $"{Value}{Extra}";
-        else
-            return $"\\{Style} {Value}{Extra}";
-    }
+    public override string ToString() => $"{Style}{Value}{Extra}";
 }

@@ -7,5 +7,5 @@ public readonly ref struct UsfmToken
     public ReadOnlySpan<char> Extra { get; }
     public UsfmToken(ReadOnlySpan<char> type, ReadOnlySpan<char> value = default, ReadOnlySpan<char> extra = default)
         { Type = type; Value = value; Extra = extra; }
-    public override string ToString() => $"\\{Type} {Value}{Extra}";
+    public override string ToString() => $"{Type}{Value}{Extra}";
 }

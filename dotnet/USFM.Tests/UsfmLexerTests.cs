@@ -9,8 +9,7 @@ public class UsfmLexerTests
     {
         var expected = @"\v 1 verse";
         var token = UsfmTokenDto.Tokenize(expected).Single();
-        var node = new VerseNode(token.Style, token.Value, token.Extra);
-        await Assert.That(node?.ToString()).IsEqualTo(expected);
+        await Assert.That(token?.ToString()).IsEqualTo(expected);
     }
 
     [Test]
@@ -18,9 +17,8 @@ public class UsfmLexerTests
     {
         var expected = @"\w gracious|lemma=""grace"" \w*";
         var input = @$"{expected}Next";
-        var token = UsfmTokenDto.Tokenize(expected).First();
-        var node = new AnnotationNode(token.Style, token.Value, token.Extra);
-        await Assert.That(node?.ToString()).IsEqualTo(expected);
+        var token = UsfmTokenDto.Tokenize(input).First();
+        await Assert.That(token?.ToString()).IsEqualTo(expected);
     }
 
     [Test]
