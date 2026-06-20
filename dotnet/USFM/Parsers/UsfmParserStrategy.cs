@@ -44,111 +44,142 @@ public class UsfmParserStrategy
 
         while (tokenizer.TryMoveNext(out var token))
         {
-            // Extract the core structural partitions using the dynamic indexer views
-            var style = token.Indices.Length > 0 ? token[0].TrimStart('\\').TrimEnd() : ReadOnlySpan<char>.Empty;
-            var value = token.Indices.Length > 0 ? token[1] : token[0];
-            var extra = token.Indices.Length > 1 ? token[2] : ReadOnlySpan<char>.Empty;
-
-            var type = IdentifyMarker(style);
-
-            switch (type)
-            {
-                case UsfmMarkerType.Block:
-                    state.OpenPara(style.ToString());
-                    if (!value.IsEmpty)
-                        state.Add(new TextNode(value.ToString()));
-                    break;
-
-                case UsfmMarkerType.Milestone:
-                    HandleMarker(style, value, extra, state);
-                    break;
-
-                case UsfmMarkerType.Inline:
-                    if (!value.IsEmpty)
-                        state.Add(new TextNode(value.ToString()));
-                    state.PushInline();
-                    break;
-
-                case UsfmMarkerType.Closing:
-                    var content = state.PopInline();
-                    state.Add(new CharNode(style.ToString(), content));
-                    if (!value.IsEmpty)
-                        state.Add(new TextNode(value.ToString()));
-                    break;
-
-                default: // Raw text tokens
-                    if (!value.IsEmpty)
-                        state.Add(new TextNode(value.ToString()));
-                    break;
-            }
+            ProcessToken(token, state);
         }
 
         state.ClosePara();
         return state.Root;
     }
 
-    private static void HandleMarker(ReadOnlySpan<char> style, ReadOnlySpan<char> value, ReadOnlySpan<char> extra, ParserState state)
+    private static void ProcessToken(LexerToken token, ParserState state)
     {
-        if (style.SequenceEqual("id"))
+        // Raw plain text node fallback
+        if (token.Indices.Length == 0)
         {
-            state.Add(new BookNode("id", value.ToString(), extra.ToString()));
+            state.Add(new TextNode(token.Span.ToString()));
+            return;
         }
-        else if (style.SequenceEqual("c"))
+
+        var style = token[0].TrimStart('\\').TrimEnd();
+        var content = token[1];
+        var extra = token.Indices.Length > 1 ? token[2] : ReadOnlySpan<char>.Empty;
+
+        switch (IdentifyMarker(style))
         {
-            state.Add(new ChapterNode("c", value.ToString()));
-        }
-        else if (style.SequenceEqual("v"))
-        {
-            state.Add(new VerseNode("v", value.ToString(), extra.ToString()));
-        }
-        else
-        {
-            HandleMilestone(style, value, state);
+            case UsfmMarkerType.Block:
+                ProcessBlockMarker(style, content, state);
+                break;
+            case UsfmMarkerType.Milestone:
+                ProcessMilestoneMarker(style, content, extra, state);
+                break;
+            case UsfmMarkerType.Inline:
+                ProcessInlineMarker(content, state);
+                break;
+            case UsfmMarkerType.Closing:
+                ProcessClosingMarker(style, content, state);
+                break;
+            default:
+                if (!content.IsEmpty) state.Add(new TextNode(content.ToString()));
+                break;
         }
     }
 
-    private static void HandleMilestone(ReadOnlySpan<char> style, ReadOnlySpan<char> value, ParserState state)
+    private static void ProcessBlockMarker(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ParserState state)
     {
-        if (value.IsEmpty)
-            return;
+        state.OpenPara(style.ToString());
+        if (!content.IsEmpty)
+        {
+            state.Add(new TextNode(content.ToString()));
+        }
+    }
+
+    private static void ProcessMilestoneMarker(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ReadOnlySpan<char> extra, ParserState state)
+    {
+        if (style.SequenceEqual("id"))
+        {
+            SplitByFirstSpace(content, out var code, out var title);
+            state.Add(new BookNode("id", code.ToString(), title.ToString()));
+        }
+        else if (style.SequenceEqual("c"))
+        {
+            state.Add(new ChapterNode("c", content.ToString()));
+        }
+        else if (style.SequenceEqual("v"))
+        {
+            SplitByFirstSpace(content, out var number, out var verseText);
+            state.Add(new VerseNode("v", number.ToString(), verseText.ToString()));
+        }
+        else
+        {
+            ProcessAttributeMilestone(style, content, state);
+        }
+    }
+
+    private static void ProcessInlineMarker(ReadOnlySpan<char> content, ParserState state)
+    {
+        if (!content.IsEmpty)
+        {
+            state.Add(new TextNode(content.ToString()));
+        }
+        state.PushInline();
+    }
+
+    private static void ProcessClosingMarker(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ParserState state)
+    {
+        var nestedContent = state.PopInline();
+        state.Add(new CharNode(style.ToString(), nestedContent));
+        if (!content.IsEmpty)
+        {
+            state.Add(new TextNode(content.ToString()));
+        }
+    }
+
+    private static void ProcessAttributeMilestone(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ParserState state)
+    {
+        if (content.IsEmpty) return;
 
         if (style.EndsWith("-s") || style.EndsWith("-e"))
         {
-            var attributes = UsfmAttributeParser.Parse(value, out int textStartIndex);
+            var attributes = UsfmAttributeParser.Parse(content, out int textStartIndex);
             state.Add(new MilestoneNode(style.ToString(), attributes));
 
-            if (textStartIndex != -1 && textStartIndex < value.Length)
+            if (textStartIndex != -1 && textStartIndex < content.Length)
             {
-                var remainingText = value[textStartIndex..];
-                if (!remainingText.IsEmpty)
+                var remainingText = content[textStartIndex..];
+                if (!char.IsWhiteSpace(remainingText[0]) && !state.HasInline())
                 {
-                    if (!char.IsWhiteSpace(remainingText[0]) && !state.HasInline())
-                    {
-                        state.Add(new TextNode(" "));
-                    }
-                    state.Add(new TextNode(remainingText.ToString()));
+                    state.Add(new TextNode(" "));
                 }
+                state.Add(new TextNode(remainingText.ToString()));
             }
         }
         else
         {
-            state.Add(new TextNode(value.ToString()));
+            state.Add(new TextNode(content.ToString()));
+        }
+    }
+
+    private static void SplitByFirstSpace(ReadOnlySpan<char> span, out ReadOnlySpan<char> first, out ReadOnlySpan<char> second)
+    {
+        int spaceIdx = span.IndexOf(' ');
+        if (spaceIdx != -1)
+        {
+            first = span[..spaceIdx];
+            second = span[(spaceIdx + 1)..];
+        }
+        else
+        {
+            first = span;
+            second = ReadOnlySpan<char>.Empty;
         }
     }
 
     private static UsfmMarkerType IdentifyMarker(ReadOnlySpan<char> marker)
     {
-        if (marker.IsEmpty)
-            return UsfmMarkerType.Text;
-
-        if (marker.SequenceEqual("id") || marker.SequenceEqual("c") || marker.SequenceEqual("v") || marker.EndsWith("-s") || marker.EndsWith("-e"))
-            return UsfmMarkerType.Milestone;
-
-        if (marker.EndsWith("*") || marker.StartsWith("qt-e"))
-            return UsfmMarkerType.Closing;
-
-        if (marker.StartsWith("p") || marker.StartsWith("s") || marker.SequenceEqual("r") || marker.SequenceEqual("m"))
-            return UsfmMarkerType.Block;
+        if (marker.IsEmpty) return UsfmMarkerType.Text;
+        if (marker.SequenceEqual("id") || marker.SequenceEqual("c") || marker.SequenceEqual("v") || marker.EndsWith("-s") || marker.EndsWith("-e")) return UsfmMarkerType.Milestone;
+        if (marker.EndsWith("*") || marker.StartsWith("qt-e")) return UsfmMarkerType.Closing;
+        if (marker.StartsWith("p") || marker.StartsWith("s") || marker.SequenceEqual("r") || marker.SequenceEqual("m")) return UsfmMarkerType.Block;
 
         if (marker.StartsWith("h") || marker.StartsWith("i") || marker.StartsWith("l") ||
             marker.StartsWith("t") || marker.StartsWith("q") || marker.StartsWith("cl") ||

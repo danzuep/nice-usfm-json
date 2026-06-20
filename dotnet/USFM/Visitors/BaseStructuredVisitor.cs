@@ -10,7 +10,6 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
         ContainerStack.Push(new List<TNode>());
     }
 
-    // Helper to process nested content and return a list of nodes
     protected IList<TNode>? ProcessChildren(IEnumerable<IUsfmNode>? children)
     {
         if (children == null || !children.Any()) return null;
@@ -21,7 +20,6 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
         return ContainerStack.Pop();
     }
 
-    // Standard method to add a node to the current active container
     protected void AddToResult(TNode node) => ContainerStack.Peek().Add(node);
 
     public virtual void Visit(BookNode node)
@@ -45,19 +43,19 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
         AddToResult(CreateVerse(node, Context.ToString()));
     }
 
-    public virtual void Visit(ParaNode node) =>
-        AddToResult(CreatePara(node, ProcessChildren(node.Content)));
+    public virtual void Visit(ParaNode node) => AddToResult(CreatePara(node, ProcessChildren(node.Content)));
+    public virtual void Visit(CharNode node) => AddToResult(CreateChar(node, ProcessChildren(node.Content)));
+    public virtual void Visit(TextNode node) => AddToResult(CreateText(node));
+    public virtual void Visit(NoteNode node) => AddToResult(CreateNote(node, ProcessChildren(node.Content)));
 
-    public virtual void Visit(CharNode node) =>
-        AddToResult(CreateChar(node, ProcessChildren(node.Content)));
+    // MOVED FROM LOWER-LEVEL BOILERPLATE TO CORE STRUCTURAL PIPELINE
+    public virtual void Visit(MilestoneNode node) => AddToResult(CreateMilestone(node));
+    public virtual void Visit(LineBreakNode node) => AddToResult(CreateLineBreak(node));
+    public virtual void Visit(TableNode node) => AddToResult(CreateTable(node, ProcessChildren(node.Content)));
+    public virtual void Visit(RowNode node) => AddToResult(CreateRow(node, ProcessChildren(node.Content)));
+    public virtual void Visit(CellNode node) => AddToResult(CreateCell(node, ProcessChildren(node.Content)));
 
-    public virtual void Visit(TextNode node) =>
-        AddToResult(CreateText(node));
-
-    public virtual void Visit(NoteNode node) =>
-        AddToResult(CreateNote(node, ProcessChildren(node.Content)));
-
-    // Factory methods for concrete implementations
+    // New uniform factory lifecycle methods
     protected abstract TNode CreateBook(BookNode node);
     protected abstract TNode CreateChapter(ChapterNode node, string sid);
     protected abstract TNode CreateVerse(VerseNode node, string vid);
@@ -65,16 +63,13 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
     protected abstract TNode CreateChar(CharNode node, IList<TNode>? children);
     protected abstract TNode CreateText(TextNode node);
     protected abstract TNode CreateNote(NoteNode node, IList<TNode>? children);
+    protected abstract TNode CreateMilestone(MilestoneNode node);
+    protected abstract TNode CreateLineBreak(LineBreakNode node);
+    protected abstract TNode CreateTable(TableNode node, IList<TNode>? children);
+    protected abstract TNode CreateRow(RowNode node, IList<TNode>? children);
+    protected abstract TNode CreateCell(CellNode node, IList<TNode>? children);
 
-    // Common visitor boilerplate
-    public abstract void Visit(TableNode node);
-    public abstract void Visit(RowNode node);
-    public abstract void Visit(CellNode node);
-    public abstract void Visit(MilestoneNode node);
-    public abstract void Visit(LineBreakNode node);
-
-    public IReadOnlyList<TNode> GetResult() =>
-        ContainerStack.Peek().ToArray();
+    public IReadOnlyList<TNode> GetResult() => ContainerStack.Peek().ToArray();
 
     public IReadOnlyList<TNode> FinalizeResult()
     {

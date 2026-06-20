@@ -11,11 +11,6 @@ public readonly ref struct LexerToken
         Indices = indices;
     }
 
-    public LexerToken(string text, int[]? indices = null)
-        : this(text.AsSpan(), indices.AsSpan())
-    {
-    }
-
     public static LexerToken Empty => new LexerToken(ReadOnlySpan<char>.Empty, default);
 
     public ReadOnlySpan<char> this[int index]
