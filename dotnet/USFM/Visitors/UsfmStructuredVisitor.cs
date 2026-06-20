@@ -23,21 +23,21 @@ public class UsfmStructuredVisitor : BaseStructuredVisitor<IUsfmNode>
     protected override IUsfmNode CreateNote(NoteNode node, IList<IUsfmNode>? children) =>
         new NoteNode(node.Style, node.Caller, children);
 
-    protected IUsfmNode CreateAnnotation(AnnotationNode node) =>
+    protected override IUsfmNode CreateMilestone(MilestoneNode node) =>
+        new MilestoneNode(node.Style, node.Attributes);
+
+    protected override IUsfmNode CreateLineBreak(LineBreakNode node) =>
+        new LineBreakNode(node.Style);
+
+    protected override IUsfmNode CreateTable(TableNode node, IList<IUsfmNode>? children) =>
+        new TableNode(node.Style, children);
+
+    protected override IUsfmNode CreateRow(RowNode node, IList<IUsfmNode>? children) =>
+        new RowNode(node.Style, children);
+
+    protected override IUsfmNode CreateCell(CellNode node, IList<IUsfmNode>? children) =>
+        new CellNode(node.Style, node.Align, children);
+
+    private IUsfmNode CreateAnnotation(AnnotationNode node) =>
         new AnnotationNode(node.Style, node.Text, node.End);
-
-    public override void Visit(MilestoneNode node) =>
-        AddToResult(new MilestoneNode(node.Style, node.Attributes));
-
-    public override void Visit(LineBreakNode node) =>
-        AddToResult(new LineBreakNode(node.Style));
-
-    public override void Visit(TableNode node) =>
-        AddToResult(new TableNode(node.Style, ProcessChildren(node.Content)));
-
-    public override void Visit(RowNode node) =>
-        AddToResult(new RowNode(node.Style, ProcessChildren(node.Content)));
-
-    public override void Visit(CellNode node) =>
-        AddToResult(new CellNode(node.Style, node.Align, ProcessChildren(node.Content)));
 }

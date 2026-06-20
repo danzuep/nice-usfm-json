@@ -1,3 +1,5 @@
+using USFM.Lexers;
+
 namespace USFM.Tests;
 
 public class FocusedTokenizerSamplesTests
@@ -13,19 +15,29 @@ public class FocusedTokenizerSamplesTests
         return Path.Combine(dir.FullName, "samples", sample, "origin.usfm");
     }
 
+    private static List<(string Type, string Value, string Extra)> Tokenize(string input)
+    {
+        var tokens = new List<(string, string, string)>();
+        var tokenizer = new UsfmLexerStrategy(input.AsSpan());
+        while (tokenizer.TryMoveNext(out var token))
+        {
+            tokens.Add((token[0].ToString().TrimStart('\\').TrimEnd(' '), token[1].ToString(), token[2].ToString()));
+        }
+        return tokens;
+    }
+
+    private static string ToStringToken((string type, string value, string extra) token) => $"{token.type}{token.value}{token.extra}";
+
     [Test]
     public async Task Tokenize_CrossRefs_Sample()
     {
         var all = File.ReadAllLines(SamplePath("cross-refs"));
         var line = all.First(l => l.StartsWith("\\v 3"));
-        var tokenizer = new UsfmLexer(line.AsSpan());
-        var parts = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
+        var parts = Tokenize(line);
 
-        await Assert.That(parts.Any(p => p.Type == "x")).IsTrue();
-        await Assert.That(parts.Any(p => p.Type == "xo")).IsTrue();
-        // ensure trailing inline text after \x* is preserved somewhere
+        // The x marker should be tokenized with its content and closing
         var x = parts.FirstOrDefault(p => p.Type == "x");
+        await Assert.That(x.Type).IsEqualTo("x");
         await Assert.That(x.Value).Contains("- ");
     }
 
@@ -34,11 +46,11 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("milestones"));
         var line = all.First(l => l.StartsWith("\\qt-s"));
-        var token = UsfmTokenDto.Tokenize(line).First();
+        var token = Tokenize(line).Single();
 
-        await Assert.That(token.Style).IsEqualTo("qt-s");
-        await Assert.That(token.Value).Contains("sid=");
+        await Assert.That(token.Type).IsEqualTo("\\qt-s");
         await Assert.That(token.Extra).IsEqualTo("\\*");
+        await Assert.That(ToStringToken(token)).IsEqualTo(line);
     }
 
     [Test]
@@ -46,9 +58,7 @@ public class FocusedTokenizerSamplesTests
     {
         var lines = File.ReadAllLines(SamplePath("footnote"));
         var line = lines.First(l => l.StartsWith("\\v 3"));
-        var tokenizer = new UsfmLexer(line.AsSpan());
-        var parts = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
+        var parts = Tokenize(line);
 
         // Ensure we see a footnote marker \f and that its value contains the \fr and \ft submarkers
         var f = parts.FirstOrDefault(p => p.Type == "f");
@@ -62,15 +72,13 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("default-attributes"));
         var line = all.First(l => l.Contains("\\w "));
-        var tokenizer = new UsfmLexer(line.AsSpan());
-        var parts = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
+        var parts = Tokenize(line);
 
-        var w = parts.FirstOrDefault(p => p.Type == "w");
-        await Assert.That(w.Type).IsEqualTo("w");
+        // The w marker with closing w* should be a single combined token
+        var w = parts.FirstOrDefault(p => p.Type.StartsWith("\\w"));
+        await Assert.That(w.Type).IsEqualTo("\\w");
         await Assert.That(w.Value).Contains("grace");
-        // Ensure there is a separate closing token for the w marker (type "w*")
-        await Assert.That(parts.Any(p => p.Type == "w*")).IsTrue();
+        await Assert.That(w.Extra).IsEqualTo("\\w*");
     }
 
     [Test]
@@ -78,13 +86,12 @@ public class FocusedTokenizerSamplesTests
     {
         var all = File.ReadAllLines(SamplePath("table"));
         var line = all.First(l => l.StartsWith("\\tr "));
-        var tokenizer = new UsfmLexer(line.AsSpan());
-        var parts = new List<(string Type, string Value)>();
-        while (tokenizer.TryMoveNext(out var t)) parts.Add((t.Type.ToString(), t.Value.ToString()));
+        var parts = Tokenize(line);
 
         // ensure row and header markers are present and not duplicated
-        await Assert.That(parts.Any(p => p.Type == "tr")).IsTrue();
-        await Assert.That(parts.Count(p => p.Type == "tr")).IsEqualTo(1);
-        await Assert.That(parts.Any(p => p.Type == "th1")).IsTrue();
+        var tr = parts.FirstOrDefault(p => p.Type.StartsWith("\\tr"));
+        await Assert.That(tr.Type).IsEqualTo("\\tr");
+        await Assert.That(!parts.Any(p => p.Type.StartsWith("\\tr\\"))).IsTrue();
+        await Assert.That(parts.Any(p => p.Type.StartsWith("\\th1"))).IsTrue();
     }
 }

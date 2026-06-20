@@ -60,7 +60,7 @@ public class UsfmParserStrategy
             return;
         }
 
-        var style = token[0].TrimStart('\\').TrimEnd();
+        var style = GetStyle(token[0]);
         var content = token[1];
         var extra = token.Indices.Length > 1 ? token[2] : ReadOnlySpan<char>.Empty;
 
@@ -193,4 +193,9 @@ public class UsfmParserStrategy
     }
 
     private enum UsfmMarkerType { Block, Milestone, Inline, Closing, Text }
+
+    private static string GetStyle(ReadOnlySpan<char> rawType)
+    {
+        return UsfmLexerStrategy.GetStyle(rawType).ToString();
+    }
 }

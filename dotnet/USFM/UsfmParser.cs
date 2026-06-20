@@ -1,4 +1,4 @@
-﻿using USFM;
+﻿using USFM.Lexers;
 using USFM.Visitors;
 
 public partial class UsfmParser
@@ -38,18 +38,19 @@ public partial class UsfmParser
     public static IReadOnlyList<IUsfmNode> Parse(ReadOnlySpan<char> usfmData)
     {
         var state = new ParserState();
-        var tokenizer = new UsfmLexer(usfmData);
+        var tokenizer = new UsfmLexerStrategy(usfmData);
 
         while (tokenizer.TryMoveNext(out var token))
         {
-            var type = IdentifyMarker(token.Style);
+            var style = GetStyle(token[0]);
+            var type = IdentifyMarker(style, token[2]);
 
             switch (type)
             {
                 case UsfmMarkerType.Block:
-                    state.OpenPara(token.Style.ToString());
-                    if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(token.Value.ToString()));
+                    state.OpenPara(style.ToString());
+                    if (!token[1].IsEmpty)
+                        state.Add(new TextNode(token[1].ToString()));
                     break;
 
                 case UsfmMarkerType.Milestone:
@@ -58,21 +59,21 @@ public partial class UsfmParser
 
                 case UsfmMarkerType.Inline:
                     // For inline markers, if there is trailing value text, add it to the current context
-                    if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(token.Value.ToString()));
+                    if (!token[1].IsEmpty)
+                        state.Add(new TextNode(token[1].ToString()));
                     state.PushInline(); // Context for potential nested content
                     break;
 
                 case UsfmMarkerType.Closing:
                     var content = state.PopInline();
-                    state.Add(new CharNode(token.Style.ToString(), content));
-                    if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(token.Value.ToString()));
+                    state.Add(new CharNode(style.ToString(), content));
+                    if (!token[1].IsEmpty)
+                        state.Add(new TextNode(token[1].ToString()));
                     break;
 
                 default: // Raw text tokens
-                    if (!token.Value.IsEmpty)
-                        state.Add(new TextNode(token.Value.ToString()));
+                    if (!token[0].IsEmpty)
+                        state.Add(new TextNode(token[0].ToString()));
                     break;
             }
         }
@@ -82,19 +83,20 @@ public partial class UsfmParser
         return state.Root;
     }
 
-    private static void HandleMarker(UsfmToken token, ParserState state)
+    private static void HandleMarker(LexerToken token, ParserState state)
     {
-        switch (token.Style)
+        var style = GetStyle(token[0]);
+        switch (style)
         {
             case "id":
-                var book = new BookNode("id", token.Value.ToString(), token.Extra.ToString());
+                var book = new BookNode("id", token[1].ToString(), token[2].ToString());
                 state.Add(book);
                 break;
             case "c":
-                state.Add(new ChapterNode("c", token.Value.ToString()));
+                state.Add(new ChapterNode("c", token[1].ToString()));
                 break;
             case "v":
-                state.Add(new VerseNode("v", token.Value.ToString(), token.Extra.ToString()));
+                state.Add(new VerseNode("v", token[1].ToString(), token[2].ToString()));
                 break;
             default:
                 HandleMilestone(token, state);
@@ -103,19 +105,20 @@ public partial class UsfmParser
     }
 
     // Handle attribute-based milestones (like \qt-s, \ts-s, etc.)
-    private static void HandleMilestone(UsfmToken token, ParserState state)
+    private static void HandleMilestone(LexerToken token, ParserState state)
     {
-        if (token.Value.IsEmpty)
+        if (token[1].IsEmpty)
             return;
-        if (token.Style.EndsWith("-s") || token.Style.EndsWith("-e"))
+        var style = GetStyle(token[0]);
+        if (style.EndsWith("-s") || style.EndsWith("-e"))
         {
-            var startIndex = token.Value[0] == '|' ? 1 : 0;
-            var attributes = UsfmAttributeParser.Parse(token.Value, out int textStartIndex);
-            state.Add(new MilestoneNode(token.Style.ToString(), attributes));
+            var startIndex = token[1][0] == '|' ? 1 : 0;
+            var attributes = UsfmAttributeParser.Parse(token[1], out int textStartIndex);
+            state.Add(new MilestoneNode(style, attributes));
             // If there is text after the \* delimiter, add it as a TextNode
-            if (textStartIndex != -1 && textStartIndex < token.Value.Length)
+            if (textStartIndex != -1 && textStartIndex < token[1].Length)
             {
-                var remainingText = token.Value[textStartIndex..];
+                var remainingText = token[1][textStartIndex..];
                 if (!remainingText.IsEmpty)
                 {
                     // If the remaining text begins with no whitespace but the milestone is adjacent to prior text,
@@ -131,17 +134,20 @@ public partial class UsfmParser
         else
         {
             //state.Add(new SeparatorNode(" "));
-            state.Add(new TextNode(token.Value.ToString()));
+            state.Add(new TextNode(token[1].ToString()));
         }
     }
 
-    private static UsfmMarkerType IdentifyMarker(ReadOnlySpan<char> marker)
+    private static UsfmMarkerType IdentifyMarker(ReadOnlySpan<char> marker, ReadOnlySpan<char> extra)
     {
         if (marker.IsEmpty)
             return UsfmMarkerType.Text;
         if (marker is "id" or "c" or "v" || marker.EndsWith("-s") || marker.EndsWith("-e"))
             return UsfmMarkerType.Milestone;
-        if (marker.EndsWith("*") || marker.StartsWith("qt-e"))
+        
+        // Check if extra contains a closing marker (e.g., \w* or \*)
+        var extraText = extra.Trim();
+        if (extraText.IsEmpty || extraText.SequenceEqual("\\*") || marker.SequenceEqual(extraText.TrimStart('\\').TrimEnd('*')))
             return UsfmMarkerType.Closing;
 
         // Block markers start paragraphs or sections
@@ -163,4 +169,9 @@ public partial class UsfmParser
     }
 
     private enum UsfmMarkerType { Block, Milestone, Inline, Closing, Text }
+
+    private static string GetStyle(ReadOnlySpan<char> rawType)
+    {
+        return UsfmLexerStrategy.GetStyle(rawType).ToString();
+    }
 }

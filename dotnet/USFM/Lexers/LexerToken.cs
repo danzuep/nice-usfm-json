@@ -7,7 +7,7 @@ public readonly ref struct LexerToken
     public readonly ReadOnlySpan<char> Span;
     public readonly ReadOnlySpan<int> Indices;
 
-    public LexerToken(ReadOnlySpan<char> span, ReadOnlySpan<int> indices)
+    public LexerToken(ReadOnlySpan<char> span, ReadOnlySpan<int> indices = default)
     {
         Span = span;
         Indices = indices;

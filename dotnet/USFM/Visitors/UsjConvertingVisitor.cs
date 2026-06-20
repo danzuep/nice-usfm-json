@@ -25,19 +25,18 @@ public class UsjConvertingVisitor : BaseStructuredVisitor<IUsjNode>
     protected override IUsjNode CreateNote(NoteNode node, IList<IUsjNode>? children) =>
         new UsjNote(node.Caller, children, node.Style);
 
-    // Additional required overrides
-    public override void Visit(MilestoneNode node) =>
-        AddToResult(new UsjMilestone(node.StartId, node.EndId, node.Who, node.Style));
+    protected override IUsjNode CreateMilestone(MilestoneNode node) =>
+        new UsjMilestone(node.StartId, node.EndId, node.Who, node.Style);
 
-    public override void Visit(LineBreakNode node) =>
-        AddToResult(new UsjLineBreak(node.Style));
+    protected override IUsjNode CreateLineBreak(LineBreakNode node) =>
+        new UsjLineBreak(node.Style);
 
-    public override void Visit(TableNode node) =>
-        AddToResult(new UsjTable(ProcessChildren(node.Content), node.Style));
+    protected override IUsjNode CreateTable(TableNode node, IList<IUsjNode>? children) =>
+        new UsjTable(ProcessChildren(node.Content), node.Style);
 
-    public override void Visit(RowNode node) =>
-        AddToResult(new UsjRow(ProcessChildren(node.Content), node.Style));
+    protected override IUsjNode CreateRow(RowNode node, IList<IUsjNode>? children) =>
+        new UsjRow(ProcessChildren(node.Content), node.Style);
 
-    public override void Visit(CellNode node) =>
-        AddToResult(new UsjCell(node.Align, ProcessChildren(node.Content), node.Style));
+    protected override IUsjNode CreateCell(CellNode node, IList<IUsjNode>? children) =>
+        new UsjCell(node.Align, ProcessChildren(node.Content), node.Style);
 }

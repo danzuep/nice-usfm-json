@@ -39,7 +39,7 @@ internal readonly struct LexerTokenDto
 
     private static string GetStyle(ReadOnlySpan<char> rawType)
     {
-        return rawType.TrimStart('\\').TrimEnd(' ').TrimEnd('*').ToString();
+        return UsfmLexerStrategy.GetStyle(rawType).ToString();
     }
 
     public override string ToString() => Raw;
