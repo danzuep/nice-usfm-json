@@ -1,12 +1,12 @@
 ﻿namespace USFM.Lexers;
 
-public ref struct UsfmLexerStrategy : ILexerStrategy
+public ref struct UsfmLexerStrategy
 {
     private const char Backslash = '\\';
     private const char Asterisk = '*';
     private const char Space = ' ';
 
-    private readonly ReadOnlySpan<char> _remaining;
+    private ReadOnlySpan<char> _remaining;
     public UsfmLexerStrategy(ReadOnlySpan<char> remaining) =>
         _remaining = remaining;
 
@@ -20,48 +20,51 @@ public ref struct UsfmLexerStrategy : ILexerStrategy
 
         if (_remaining[0] == Backslash && _remaining.Length > 1)
         {
-            token = GetMarker(_remaining);
+            token = GetMarker();
         }
         else
         {
-            token = GetText(_remaining);
+            token = GetText();
         }
 
         return true;
     }
 
-    private LexerToken GetText(ReadOnlySpan<char> span)
+    private LexerToken GetText()
     {
         ReadOnlySpan<char> text;
-        var nextSlash = span.IndexOf(Backslash);
+        var nextSlash = _remaining.IndexOf(Backslash);
 
         if (nextSlash != -1)
         {
-            text = span[..nextSlash];
-            span = span[nextSlash..];
+            text = _remaining[..nextSlash];
+            _remaining = _remaining[nextSlash..];
         }
         else
         {
-            text = span;
-            span = ReadOnlySpan<char>.Empty;
+            text = _remaining;
+            _remaining = ReadOnlySpan<char>.Empty;
         }
 
         return new LexerToken(text);
     }
 
-    private LexerToken GetMarker(ReadOnlySpan<char> span)
+    private LexerToken GetMarker()
     {
-        var startIndex = GetTypeValueSplitIndex(span);
-        var marker = span[..startIndex];
-        var remaining = span[startIndex..];
+        var originalRemaining = _remaining;
+        var remainingStart = GetTypeValueSplitIndex(_remaining);
+        var marker = _remaining[..remainingStart];
+        var remaining = _remaining[remainingStart..];
 
         var nextBackslash = remaining.IndexOf(Backslash);
         if (nextBackslash == -1)
         {
-            var token = new LexerToken(span);
-            token.Indexes.Add(startIndex); // Index 0: End of marker tag
+            var token = new LexerToken(_remaining);
+            // Split 0: End of marker tag
+            token.Indexes.Add(remainingStart);
 
-            if (marker.SequenceEqual("v") || marker.SequenceEqual("id"))
+            var cleanMarker = marker.TrimStart(Backslash).Trim();
+            if (cleanMarker.SequenceEqual("v") || cleanMarker.SequenceEqual("id"))
             {
                 var nextSpace = remaining.IndexOf(Space);
                 if (nextSpace != -1)
@@ -71,43 +74,47 @@ public ref struct UsfmLexerStrategy : ILexerStrategy
                     {
                         splitIndex = nextSpace;
                     }
-                    token.Indexes.Add(startIndex + splitIndex); // Index 1: End of value split
+                    // Split 1: End of value tag split
+                    token.Indexes.Add(remainingStart + splitIndex);
                 }
             }
 
-            span = ReadOnlySpan<char>.Empty;
+            _remaining = ReadOnlySpan<char>.Empty;
             return token;
         }
 
-        if (EndMarkerCheck(span, startIndex, out var endMarkerToken))
+        if (EndMarkerCheck(originalRemaining, remainingStart, out var endMarkerToken))
         {
-            span = span[endMarkerToken.Span.Length..];
             return endMarkerToken;
         }
 
-        var endMarkerIndex = remaining.IndexOf(marker);
-        if (endMarkerIndex >= nextBackslash && CheckChar(remaining, endMarkerIndex + marker.Length))
+        var cleanMarkerStr = marker.TrimStart(Backslash).Trim();
+        var endMarkerIndex = remaining.IndexOf(cleanMarkerStr);
+        if (endMarkerIndex >= nextBackslash && CheckChar(remaining, endMarkerIndex + cleanMarkerStr.Length))
         {
-            var spanEnd = endMarkerIndex-- + marker.Length;
+            var spanEnd = endMarkerIndex-- + cleanMarkerStr.Length;
             if (CheckNextWhiteSpace(remaining, ++spanEnd))
             {
                 spanEnd++;
             }
 
-            var totalLength = startIndex + spanEnd;
-            var token = new LexerToken(span[..totalLength]);
-            token.Indexes.Add(startIndex);               // Index 0: End of marker tag
-            token.Indexes.Add(startIndex + endMarkerIndex); // Index 1: End of attributes / start of closing marker
+            var totalLength = remainingStart + spanEnd;
+            var token = new LexerToken(originalRemaining[..totalLength]);
+            // Split 0: End of marker tag
+            token.Indexes.Add(remainingStart);
+            // Split 1: End of value tag / start of closing tag
+            token.Indexes.Add(remainingStart + endMarkerIndex);
 
-            span = span[totalLength..];
+            _remaining = originalRemaining[totalLength..];
             return token;
         }
 
-        var fallbackLength = startIndex + nextBackslash;
-        var fallbackToken = new LexerToken(span[..fallbackLength]);
-        fallbackToken.Indexes.Add(startIndex); // Index 0: End of marker tag
+        var fallbackLength = remainingStart + nextBackslash;
+        var fallbackToken = new LexerToken(originalRemaining[..fallbackLength]);
+        // Split 0: End of marker tag
+        fallbackToken.Indexes.Add(remainingStart);
 
-        span = span[fallbackLength..];
+        _remaining = originalRemaining[fallbackLength..];
         return fallbackToken;
     }
 
@@ -125,7 +132,7 @@ public ref struct UsfmLexerStrategy : ILexerStrategy
 
     private bool EndMarkerCheck(ReadOnlySpan<char> originalSpan, int remainingStart, out LexerToken result)
     {
-        var marker = originalSpan[..remainingStart];
+        var marker = originalSpan[..remainingStart].TrimStart(Backslash).Trim();
         var span = originalSpan[remainingStart..];
         var nextAsterisk = span.IndexOf(Asterisk);
 
@@ -167,9 +174,12 @@ public ref struct UsfmLexerStrategy : ILexerStrategy
 
         var totalLength = remainingStart + spanEnd;
         result = new LexerToken(originalSpan[..totalLength]);
-        result.Indexes.Add(remainingStart); // Index 0: End of marker tag
-        result.Indexes.Add(remainingStart + endMarkerIndex); // Index 1: End of value / start of close tag
+        // Split 0: End of marker tag
+        result.Indexes.Add(remainingStart);
+        // Split 1: End of value / start of close tag
+        result.Indexes.Add(remainingStart + endMarkerIndex);
 
+        _remaining = originalSpan[totalLength..];
         return true;
     }
 
