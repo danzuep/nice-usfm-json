@@ -4,7 +4,7 @@ using static UsfmParser;
 
 namespace USFM.Parsers;
 
-public class UsfmParserStrategy : IParserStrategy<UsfmLexerStrategy, IReadOnlyList<IUsfmNode>>
+public class UsfmParserStrategy
 {
     private class ParserState
     {
@@ -38,16 +38,16 @@ public class UsfmParserStrategy : IParserStrategy<UsfmLexerStrategy, IReadOnlyLi
         public bool HasInline() => _contentStack.Count > 0;
     }
 
-    public IReadOnlyList<IUsfmNode> Parse(ref UsfmLexerStrategy tokenizer)
+    public static IReadOnlyList<IUsfmNode> Parse(ref UsfmLexerStrategy tokenizer)
     {
         var state = new ParserState();
 
         while (tokenizer.TryMoveNext(out var token))
         {
-            // Extract component views from the unified LexerToken span using your split indices
-            var style = GetStyle(token);
-            var value = GetValue(token);
-            var extra = GetExtra(token);
+            // Extract the core structural partitions using the dynamic indexer views
+            var style = token.Indices.Length > 0 ? token[0].TrimStart('\\').TrimEnd() : ReadOnlySpan<char>.Empty;
+            var value = token.Indices.Length > 0 ? token[1] : token[0];
+            var extra = token.Indices.Length > 1 ? token[2] : ReadOnlySpan<char>.Empty;
 
             var type = IdentifyMarker(style);
 
@@ -85,28 +85,6 @@ public class UsfmParserStrategy : IParserStrategy<UsfmLexerStrategy, IReadOnlyLi
 
         state.ClosePara();
         return state.Root;
-    }
-
-    // Helper partition slicers mapping LexerToken back into original component expectations
-    private static ReadOnlySpan<char> GetStyle(in LexerToken token)
-    {
-        if (token.Indexes.Count == 0) return ReadOnlySpan<char>.Empty;
-        var rawStyle = token.Span[..token.Indexes[0]];
-        if (!rawStyle.IsEmpty && rawStyle[0] == '\\') rawStyle = rawStyle[1..];
-        return rawStyle.Trim();
-    }
-
-    private static ReadOnlySpan<char> GetValue(in LexerToken token)
-    {
-        if (token.Indexes.Count == 0) return token.Span;
-        if (token.Indexes.Count == 1) return token.Span[token.Indexes[0]..];
-        return token.Span[token.Indexes[0]..token.Indexes[1]];
-    }
-
-    private static ReadOnlySpan<char> GetExtra(in LexerToken token)
-    {
-        if (token.Indexes.Count <= 1) return ReadOnlySpan<char>.Empty;
-        return token.Span[token.Indexes[1]..];
     }
 
     private static void HandleMarker(ReadOnlySpan<char> style, ReadOnlySpan<char> value, ReadOnlySpan<char> extra, ParserState state)

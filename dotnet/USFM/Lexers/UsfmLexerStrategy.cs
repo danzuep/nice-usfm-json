@@ -5,10 +5,12 @@ public ref struct UsfmLexerStrategy
     private const char Backslash = '\\';
     private const char Asterisk = '*';
     private const char Space = ' ';
-
     private ReadOnlySpan<char> _remaining;
-    public UsfmLexerStrategy(ReadOnlySpan<char> remaining) =>
+
+    public UsfmLexerStrategy(ReadOnlySpan<char> remaining)
+    {
         _remaining = remaining;
+    }
 
     public bool TryMoveNext(out LexerToken token)
     {
@@ -34,7 +36,6 @@ public ref struct UsfmLexerStrategy
     {
         ReadOnlySpan<char> text;
         var nextSlash = _remaining.IndexOf(Backslash);
-
         if (nextSlash != -1)
         {
             text = _remaining[..nextSlash];
@@ -45,24 +46,32 @@ public ref struct UsfmLexerStrategy
             text = _remaining;
             _remaining = ReadOnlySpan<char>.Empty;
         }
-
-        return new LexerToken(text);
+        return new LexerToken(text, ReadOnlySpan<int>.Empty);
     }
 
     private LexerToken GetMarker()
     {
         var originalRemaining = _remaining;
-        var remainingStart = GetTypeValueSplitIndex(_remaining);
-        var marker = _remaining[..remainingStart];
+
+        // Extract Type-Value base split boundaries
+        var index = 1;
+        while (index < _remaining.Length && !char.IsWhiteSpace(_remaining[index]))
+        {
+            index++;
+        }
+
+        var remainingStart = index + 1;
+        if (remainingStart >= _remaining.Length)
+        {
+            remainingStart = index;
+        }
+
+        var marker = _remaining[0..remainingStart];
         var remaining = _remaining[remainingStart..];
 
         var nextBackslash = remaining.IndexOf(Backslash);
         if (nextBackslash == -1)
         {
-            var token = new LexerToken(_remaining);
-            // Split 0: End of marker tag
-            token.Indexes.Add(remainingStart);
-
             var cleanMarker = marker.TrimStart(Backslash).Trim();
             if (cleanMarker.SequenceEqual("v") || cleanMarker.SequenceEqual("id"))
             {
@@ -74,68 +83,46 @@ public ref struct UsfmLexerStrategy
                     {
                         splitIndex = nextSpace;
                     }
-                    // Split 1: End of value tag split
-                    token.Indexes.Add(remainingStart + splitIndex);
+                    _remaining = ReadOnlySpan<char>.Empty;
+                    return new LexerToken(originalRemaining, new int[] { remainingStart, remainingStart + splitIndex });
                 }
             }
 
             _remaining = ReadOnlySpan<char>.Empty;
-            return token;
+            return new LexerToken(originalRemaining, new int[] { remainingStart });
         }
 
-        if (EndMarkerCheck(originalRemaining, remainingStart, out var endMarkerToken))
+        if (EndMarkerCheck(marker, remaining, remainingStart, originalRemaining, out var endToken))
         {
-            return endMarkerToken;
+            return endToken;
         }
 
-        var cleanMarkerStr = marker.TrimStart(Backslash).Trim();
-        var endMarkerIndex = remaining.IndexOf(cleanMarkerStr);
-        if (endMarkerIndex >= nextBackslash && CheckChar(remaining, endMarkerIndex + cleanMarkerStr.Length))
+        var endMarkerIndex = remaining.IndexOf(marker);
+        if (endMarkerIndex >= nextBackslash &&
+            endMarkerIndex + marker.Length < remaining.Length &&
+            remaining[endMarkerIndex + marker.Length] == Asterisk)
         {
-            var spanEnd = endMarkerIndex-- + cleanMarkerStr.Length;
-            if (CheckNextWhiteSpace(remaining, ++spanEnd))
+            var origEndMarkerIndex = endMarkerIndex;
+            var spanEnd = endMarkerIndex + marker.Length;
+            endMarkerIndex--;
+            spanEnd++;
+            if (spanEnd < remaining.Length && char.IsWhiteSpace(remaining[spanEnd]))
             {
                 spanEnd++;
             }
-
             var totalLength = remainingStart + spanEnd;
-            var token = new LexerToken(originalRemaining[..totalLength]);
-            // Split 0: End of marker tag
-            token.Indexes.Add(remainingStart);
-            // Split 1: End of value tag / start of closing tag
-            token.Indexes.Add(remainingStart + endMarkerIndex);
-
             _remaining = originalRemaining[totalLength..];
-            return token;
+            return new LexerToken(originalRemaining[..totalLength], new int[] { remainingStart, remainingStart + endMarkerIndex });
         }
 
         var fallbackLength = remainingStart + nextBackslash;
-        var fallbackToken = new LexerToken(originalRemaining[..fallbackLength]);
-        // Split 0: End of marker tag
-        fallbackToken.Indexes.Add(remainingStart);
-
         _remaining = originalRemaining[fallbackLength..];
-        return fallbackToken;
+        return new LexerToken(originalRemaining[..fallbackLength], new int[] { remainingStart });
     }
 
-    private int GetTypeValueSplitIndex(ReadOnlySpan<char> span)
+    private bool EndMarkerCheck(ReadOnlySpan<char> marker, ReadOnlySpan<char> span, int remainingStart, ReadOnlySpan<char> originalSpan, out LexerToken result)
     {
-        var index = 1;
-        while (index < span.Length && !char.IsWhiteSpace(span[index]))
-        {
-            index++;
-        }
-
-        var remainingStart = index + 1;
-        return remainingStart >= span.Length ? index : remainingStart;
-    }
-
-    private bool EndMarkerCheck(ReadOnlySpan<char> originalSpan, int remainingStart, out LexerToken result)
-    {
-        var marker = originalSpan[..remainingStart].TrimStart(Backslash).Trim();
-        var span = originalSpan[remainingStart..];
         var nextAsterisk = span.IndexOf(Asterisk);
-
         if (nextAsterisk == -1)
         {
             result = default;
@@ -144,8 +131,8 @@ public ref struct UsfmLexerStrategy
 
         var endMarkerIndex = nextAsterisk - 1;
         while (endMarkerIndex > 0 &&
-               !span[endMarkerIndex].Equals(Backslash) &&
-               !char.IsWhiteSpace(span[endMarkerIndex]))
+            !span[endMarkerIndex].Equals(Backslash) &&
+            !char.IsWhiteSpace(span[endMarkerIndex]))
         {
             endMarkerIndex--;
         }
@@ -173,19 +160,8 @@ public ref struct UsfmLexerStrategy
         }
 
         var totalLength = remainingStart + spanEnd;
-        result = new LexerToken(originalSpan[..totalLength]);
-        // Split 0: End of marker tag
-        result.Indexes.Add(remainingStart);
-        // Split 1: End of value / start of close tag
-        result.Indexes.Add(remainingStart + endMarkerIndex);
-
         _remaining = originalSpan[totalLength..];
+        result = new LexerToken(originalSpan[..totalLength], new int[] { remainingStart, remainingStart + endMarkerIndex });
         return true;
     }
-
-    private bool CheckChar(ReadOnlySpan<char> span, int index, char target = Asterisk)
-        => index < span.Length && span[index] == target;
-
-    private bool CheckNextWhiteSpace(ReadOnlySpan<char> span, int index)
-        => index < span.Length && char.IsWhiteSpace(span[index]);
 }
