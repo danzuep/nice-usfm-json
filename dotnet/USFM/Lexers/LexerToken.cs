@@ -2,6 +2,8 @@
 
 public readonly ref struct LexerToken
 {
+    public static LexerToken Empty => new LexerToken(ReadOnlySpan<char>.Empty, default);
+
     public readonly ReadOnlySpan<char> Span;
     public readonly ReadOnlySpan<int> Indices;
 
@@ -10,8 +12,6 @@ public readonly ref struct LexerToken
         Span = span;
         Indices = indices;
     }
-
-    public static LexerToken Empty => new LexerToken(ReadOnlySpan<char>.Empty, default);
 
     public ReadOnlySpan<char> this[int index]
     {
@@ -24,16 +24,6 @@ public readonly ref struct LexerToken
 
             return Span.Slice(start, end - start);
         }
-    }
-
-    public IReadOnlyList<string> GetSegments()
-    {
-        var result = new List<string>();
-        for (int i = 0; i <= Indices.Length; i++)
-        {
-            result.Add(this[i].ToString());
-        }
-        return result;
     }
 
     public override string ToString() => Span.ToString();
