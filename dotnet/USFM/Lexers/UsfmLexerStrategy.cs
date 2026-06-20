@@ -56,61 +56,38 @@ public ref struct UsfmLexerStrategy
     {
         var originalRemaining = _remaining;
         int styleEndIndex = FindStyleEndIndex();
-        int contentStart = styleEndIndex < originalRemaining.Length
-            ? styleEndIndex + 1
-            : styleEndIndex;
+        int contentStart = styleEndIndex < originalRemaining.Length ?
+            styleEndIndex + 1 :
+            styleEndIndex;
 
-        var contentAfterHeader = originalRemaining[contentStart..];
-        int nextBackslashInContent = contentAfterHeader.IndexOf(Backslash);
+        var content = originalRemaining[contentStart..];
+        var nextBackslash = content.IndexOf(Backslash);
 
-        // Scenario A: Marker at end of input
-        if (nextBackslashInContent == -1)
+        // Scenario A: End of stream reached with no trailing elements
+        if (nextBackslash == -1)
         {
             _remaining = ReadOnlySpan<char>.Empty;
             return new LexerToken(originalRemaining, new[] { contentStart });
         }
 
-        var styleHeader = originalRemaining[..styleEndIndex];
-
-        // Scenario B: Look for closing marker (generic: matching \tag* or milestone \*)
-        if (TryFindClosingMarker(contentAfterHeader, styleHeader, out int relativeCloseStart, out int relativeCloseEnd))
+        // Scenario B: Look ahead for closing style tags (\f* or milestone terminations)
+        if (TryFindClosingBounds(content, originalRemaining[..contentStart], out int closeStart, out int closeEnd))
         {
-            int absoluteCloseStart = contentStart + relativeCloseStart;
-            int absoluteCloseEnd = contentStart + relativeCloseEnd;
-
+            int absoluteCloseStart = contentStart + closeStart;
+            int absoluteCloseEnd = contentStart + closeEnd;
             _remaining = originalRemaining[absoluteCloseEnd..];
-            return new LexerToken(
-                originalRemaining[..absoluteCloseEnd],
-                new[] { contentStart, absoluteCloseStart });
+            return new LexerToken(originalRemaining[..absoluteCloseEnd], new int[] { contentStart, absoluteCloseStart });
         }
 
-        // Scenario C: Inline repeating end-marker (e.g. \w ... \w*)
-        var trimmedHeader = styleHeader.Trim();
-        int endMarkerStart = contentAfterHeader.IndexOf(trimmedHeader);
-        if (IsValidInlineEndMarker(contentAfterHeader, trimmedHeader, endMarkerStart, nextBackslashInContent))
-        {
-            int spanEnd = endMarkerStart + trimmedHeader.Length + 1; // +1 for *
-            if (spanEnd < contentAfterHeader.Length && char.IsWhiteSpace(contentAfterHeader[spanEnd]))
-            {
-                spanEnd++;
-            }
-
-            int absoluteSpanEnd = contentStart + spanEnd;
-            _remaining = originalRemaining[absoluteSpanEnd..];
-            return new LexerToken(
-                originalRemaining[..absoluteSpanEnd],
-                new[] { contentStart, contentStart + endMarkerStart });
-        }
-
-        // Scenario D: Fallback - single marker up to next marker
-        int fallbackEnd = contentStart + nextBackslashInContent;
-        _remaining = originalRemaining[fallbackEnd..];
-        return new LexerToken(originalRemaining[..fallbackEnd], new[] { contentStart });
+        // Scenario C: Standard marker sequence fallthrough
+        int fallbackLength = contentStart + nextBackslash;
+        _remaining = originalRemaining[fallbackLength..];
+        return new LexerToken(originalRemaining[..fallbackLength], new int[] { contentStart });
     }
 
     private int FindStyleEndIndex()
     {
-        int index = 1; // Skip initial backslash
+        int index = 1;
         while (index < _remaining.Length && !char.IsWhiteSpace(_remaining[index]))
         {
             index++;
@@ -118,74 +95,35 @@ public ref struct UsfmLexerStrategy
         return index;
     }
 
-    /// <summary>
-    /// Generic closing marker detection supporting both:
-    /// - Standard: \tag ... \tag*
-    /// - Milestone/self-closing style: \tag ... \*
-    /// </summary>
-    private bool TryFindClosingMarker(
-        ReadOnlySpan<char> content,
-        ReadOnlySpan<char> styleHeader,
-        out int start,
-        out int end)
+    private bool TryFindClosingBounds(ReadOnlySpan<char> content, ReadOnlySpan<char> styleHeader, out int start, out int end)
     {
         start = end = 0;
+        int nextAsterisk = content.IndexOf(Asterisk);
+        if (nextAsterisk == -1) return false;
 
-        // Prefer exact matching closing tag first (\tag*)
-        var trimmedHeader = styleHeader.TrimStart(Backslash).TrimEnd();
-        if (!trimmedHeader.IsEmpty)
+        int backslashIdx = nextAsterisk - 1;
+        while (backslashIdx > 0 && content[backslashIdx] != Backslash && !char.IsWhiteSpace(content[backslashIdx]))
         {
-            // Simple search for \ + header + *
-            // (This is efficient enough for typical USFM; could be optimized further if needed)
-            int candidate = 0;
-            while ((candidate = content[candidate..].IndexOf(Backslash)) >= 0)
-            {
-                candidate += content.Length - content[candidate..].Length; // Adjust absolute
-                int tagEnd = candidate + 1 + trimmedHeader.Length;
-                if (tagEnd < content.Length
-                    && content[(candidate + 1)..tagEnd].SequenceEqual(trimmedHeader)
-                    && content[tagEnd] == Asterisk)
-                {
-                    start = candidate;
-                    end = tagEnd + 1;
-                    if (end < content.Length && char.IsWhiteSpace(content[end]))
-                        end++;
-                    return true;
-                }
-                candidate++; // Continue searching after this backslash
-            }
+            backslashIdx--;
         }
 
-        // Fallback: Milestone-style standalone \* (common for -s/-e milestones and self-closing)
-        int asteriskIndex = content.IndexOf(Asterisk);
-        if (asteriskIndex > 0)
+        if (backslashIdx < 0 || content[backslashIdx] != Backslash) return false;
+
+        // Ensure closing syntax logically matches or relates to the opening tag style header
+        var closingTag = content[backslashIdx..nextAsterisk];
+        if (!closingTag.IsEmpty && styleHeader.Trim().StartsWith(closingTag))
         {
-            int backslashIndex = asteriskIndex - 1;
-            if (content[backslashIndex] == Backslash)
+            start = backslashIdx;
+            end = nextAsterisk + 1;
+
+            if (end < content.Length && char.IsWhiteSpace(content[end]))
             {
-                start = backslashIndex;
-                end = asteriskIndex + 1;
-
-                if (end < content.Length && char.IsWhiteSpace(content[end]))
-                    end++;
-
-                return true;
+                end++;
             }
+            return true;
         }
 
         return false;
-    }
-
-    private static bool IsValidInlineEndMarker(
-        ReadOnlySpan<char> content,
-        ReadOnlySpan<char> marker,
-        int endMarkerIndex,
-        int nextBackslash)
-    {
-        return endMarkerIndex >= nextBackslash
-            && endMarkerIndex > 0
-            && endMarkerIndex + marker.Length < content.Length
-            && content[endMarkerIndex + marker.Length] == Asterisk;
     }
 
     internal static ReadOnlySpan<char> GetStyle(ReadOnlySpan<char> rawType)
