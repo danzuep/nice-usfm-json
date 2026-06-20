@@ -56,7 +56,7 @@ public class MarkdownConvertingVisitor : IUsfmVisitor
     }
 
     public void Visit(CharNode node) => this.Accept(node.Content);
-    public void Visit(TextNode node) => _builder.Append(node.Text);
+    public void Visit(TextNode node) => _builder.AppendLine(node.Text);
     public void Visit(MilestoneNode node) => _builder.Append($"<!-- {node.Style} -->");
     public void Visit(LineBreakNode node) => _builder.Append("  \n");
     public void Visit(TableNode node) => this.Accept(node.Content);

@@ -1,4 +1,4 @@
-﻿namespace USFM;
+﻿namespace USFM.Parsers;
 
 public sealed class ParsingContext
 {

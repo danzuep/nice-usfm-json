@@ -1,22 +1,28 @@
+using USFM.Lexers;
+
 namespace USFM.Tests;
 
-public class UsfmLexerTokenTests
+public class UsfmLexerTokenTests 
 {
     [Test]
     public async Task Verse()
     {
         var expected = @"\v 1 verse";
-        var token = LexerTokenDto.Tokenize(expected).Single();
-        await Assert.That(token.Raw).IsEqualTo(expected);
+        var lexer = UsfmLexerTokenDto.Tokenize(expected).Single();
+        var split = lexer.Segments[1].Split(' ');
+        await Assert.That(lexer.Raw).IsEqualTo(expected);
+        await Assert.That(lexer.Style).IsEqualTo("v");
+        await Assert.That(split[0]).IsEqualTo("1");
+        await Assert.That(split[1]).IsEqualTo("verse");
     }
 
     [Test]
     public async Task WordAnnotation()
     {
         var expected = @"\w gracious|lemma=""grace"" \w*";
-        var input = @$"{expected}Next";
-        var token = LexerTokenDto.Tokenize(input).First();
-        await Assert.That(token.Raw).IsEqualTo(expected);
+        var input = @$"\v 1{expected}Next";
+        var tokens = UsfmLexerTokenDto.Tokenize(input);
+        await Assert.That(tokens[1].ToString()).IsEqualTo(expected);
     }
 
     [Test]
@@ -29,7 +35,7 @@ public class UsfmLexerTokenTests
             @"\vp 1b\vp* ",
             "This *"
         };
-        var tokens = LexerTokenDto.Tokenize(expected);
+        var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
         for (int i = 0; i < tokens.Count; i++)
         {
@@ -46,7 +52,7 @@ public class UsfmLexerTokenTests
             @"\jmp |link-id=""article-john_the_baptist"" \jmp*",
             "John the Baptist"
         };
-        var tokens = LexerTokenDto.Tokenize(expected);
+        var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
         for (int i = 0; i < tokens.Count; i++)
         {
@@ -62,7 +68,7 @@ public class UsfmLexerTokenTests
             @"\x - \xo 2.23: \xt Mrk 1.24; \xt Luk 2.39; \xt Jhn 1.45.\x*",
             "and made his home in a town named Nazareth."
         };
-        var tokens = LexerTokenDto.Tokenize(expected);
+        var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
         for (int i = 0; i < tokens.Count; i++)
         {
@@ -74,7 +80,7 @@ public class UsfmLexerTokenTests
     public async Task QuoteEnd()
     {
         var expected = @"\qt-e |eid=""qt_123"" \*";
-        var token = LexerTokenDto.Tokenize(expected).Single();
+        var token = UsfmLexerTokenDto.Tokenize(expected).Single();
 
         await Assert.That(token.Raw).IsEqualTo(expected);
     }
@@ -88,7 +94,7 @@ public class UsfmLexerTokenTests
             "Are you the king of the Jews?",
             @"\qt-e |eid=""qt_123"" \*"
         };
-        var tokens = LexerTokenDto.Tokenize(expected);
+        var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
         for (int i = 0; i < tokens.Count; i++)
         {
@@ -104,7 +110,7 @@ public class UsfmLexerTokenTests
             @"\v 2 the second verse ",
             @"\w gracious|lemma=""grace"" \w*"
         };
-        var tokens = LexerTokenDto.Tokenize(expected);
+        var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
         for (int i = 0; i < tokens.Count; i++)
         {
@@ -117,7 +123,7 @@ public class UsfmLexerTokenTests
     public async Task MilestoneMarker()
     {
         var expected = @"\ms +\nd 1\ms*";
-        var token = LexerTokenDto.Tokenize(expected).Single();
+        var token = UsfmLexerTokenDto.Tokenize(expected).Single();
 
         await Assert.That(token.Raw).IsEqualTo(expected);
         await Assert.That(token.Segments[0]).IsEqualTo(@"\ms ");
@@ -135,7 +141,7 @@ public class UsfmLexerTokenTests
             @"\w two|lemma=""two"" \w* ",
             "end"
         };
-        var tokens = LexerTokenDto.Tokenize(expected);
+        var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
         for (int i = 0; i < tokens.Count; i++)
         {
@@ -153,7 +159,7 @@ public class UsfmLexerTokenTests
             @"\w* ",
             "end"
         };
-        var token = LexerTokenDto.Tokenize(expected).First();
+        var token = UsfmLexerTokenDto.Tokenize(expected).First();
 
         await Assert.That(token.Segments[1]).IsEqualTo(expected[1]);
         await Assert.That(token.Segments[2]).IsEqualTo(expected[2]);
@@ -169,7 +175,7 @@ public class UsfmLexerTokenTests
             @"\ca 2\ca*",
             @"\cp M"
         };
-        var tokens = LexerTokenDto.Tokenize(expected);
+        var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
         for (int i = 0; i < tokens.Count; i++)
         {

@@ -2,11 +2,29 @@ using System.Diagnostics;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using USFM.Parsers;
+using USFM.Tests.Helpers;
+using USJ;
 
 namespace USFM.Tests;
 
-public class DataDrivenTests
+public class UsfmUsjDataGeneratorTests
 {
+    [Test]
+    [Arguments("minimal")]
+    public async Task DeserializeUsfmUsj_FromEmbeddedResource(string resourceName)
+    {
+        (var fullResourceName, var usfmStream) = EmbeddedFileHelpers.LoadEmbeddedFile(resourceName);
+        await Assert.That(usfmStream).IsNotNull();
+        var converter = new UsfmConverter();
+        var actualDocument = await converter.ConvertUsfmToUsjAsync(usfmStream);
+        await Assert.That(actualDocument).IsNotNull();
+        await Assert.That(actualDocument.Type).IsEqualTo(UsjDocument.UsjType);
+        await Assert.That(actualDocument.Version).IsEqualTo(UsjDocument.UsjVersion);
+        await Assert.That(actualDocument.Content).IsNotNull();
+        await Assert.That(actualDocument.Content.Count).IsEqualTo(5);
+    }
+
     [Test]
     [UsfmDataGenerator]
     public async Task ConvertUsfmToUsj_WithUsfmDataGenerator(string name, Stream usfmStream, Stream expectedJsonStream)

@@ -1,4 +1,6 @@
-﻿namespace USFM.Visitors;
+﻿using USFM.Parsers;
+
+namespace USFM.Visitors;
 
 public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
 {

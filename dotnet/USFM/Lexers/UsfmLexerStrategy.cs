@@ -29,16 +29,16 @@ public ref struct UsfmLexerStrategy
     private bool IsMarkerStart =>
         _remaining.Length > 1 && _remaining[0] == Backslash;
 
-    private bool TryGetNext(char value, out int index)
+    private static bool TryGetNext(ReadOnlySpan<char> span, char value, out int index)
     {
-        index = _remaining.IndexOf(value);
+        index = span.IndexOf(value);
         return index >= 0;
     }
 
     private LexerToken ParseTextToken()
     {
         ReadOnlySpan<char> textSpan;
-        if (TryGetNext(Backslash, out var nextBackslash))
+        if (TryGetNext(_remaining, Backslash, out var nextBackslash))
         {
             textSpan = _remaining[..nextBackslash];
             _remaining = _remaining[nextBackslash..];
@@ -124,6 +124,21 @@ public ref struct UsfmLexerStrategy
         }
 
         return false;
+    }
+
+    internal static LexerToken SplitValue(LexerToken token, char splitChar = Space)
+    {
+        var indices = token.Indices;
+        if (TryGetNext(token[1], splitChar, out var nextSpace))
+        {
+            var indicesArray = indices.ToArray();
+            var lastIndex = indicesArray.Length;
+            Array.Resize(ref indicesArray, lastIndex + 1);
+            var previousMax = lastIndex > 0 ? indicesArray[lastIndex - 1] : 0;
+            indicesArray[lastIndex] = ++nextSpace + previousMax;
+            indices = indicesArray;
+        }
+        return new LexerToken(token.Span, indices);
     }
 
     internal static ReadOnlySpan<char> GetStyle(ReadOnlySpan<char> rawType)

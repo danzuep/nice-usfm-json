@@ -1,28 +1,28 @@
-﻿using USFM.Lexers;
+﻿namespace USFM.Lexers;
 
-namespace USFM;
-
-internal readonly struct LexerTokenDto
+internal readonly struct UsfmLexerTokenDto
 {
+    public static UsfmLexerTokenDto Empty => new UsfmLexerTokenDto(LexerToken.Empty);
+
     public readonly string Raw;
     public readonly string Style;
     public readonly IReadOnlyList<string> Segments;
 
-    public LexerTokenDto(LexerToken token)
+    public UsfmLexerTokenDto(LexerToken token)
     {
         Raw = token.Span.ToString();
         Style = GetStyle(token[0]);
         Segments = GetSegments(token);
     }
 
-    public static IReadOnlyList<LexerTokenDto> Tokenize(params string[] input)
+    public static IReadOnlyList<UsfmLexerTokenDto> Tokenize(params string[] input)
     {
-        var result = new List<LexerTokenDto>();
+        var result = new List<UsfmLexerTokenDto>();
         var text = string.Concat(input);
         var tokenizer = new UsfmLexerStrategy(text.AsSpan());
         while (tokenizer.TryMoveNext(out var token))
         {
-            result.Add(new LexerTokenDto(token));
+            result.Add(new UsfmLexerTokenDto(token));
         }
         return result;
     }

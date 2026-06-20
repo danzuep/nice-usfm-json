@@ -1,6 +1,6 @@
 using Assembly = System.Reflection.Assembly;
 
-namespace USFM.Tests;
+namespace USFM.Tests.Helpers;
 
 public class UsfmDataGeneratorAttribute : DataSourceGeneratorAttribute<(string, Stream, Stream)>
 {

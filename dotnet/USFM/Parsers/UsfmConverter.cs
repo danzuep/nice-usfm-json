@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using USFM.Visitors;
 using USJ;
 
-namespace USFM;
+namespace USFM.Parsers;
 
 public class UsfmConverter
 {

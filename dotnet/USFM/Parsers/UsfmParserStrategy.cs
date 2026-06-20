@@ -1,6 +1,5 @@
 ﻿using USFM.Lexers;
 using USFM.Visitors;
-using static UsfmParser;
 
 namespace USFM.Parsers;
 
@@ -70,7 +69,7 @@ public class UsfmParserStrategy
                 ProcessBlockMarker(style, content, state);
                 break;
             case UsfmMarkerType.Milestone:
-                ProcessMilestoneMarker(style, content, extra, state);
+                ProcessMilestoneMarker(token, state);
                 break;
             case UsfmMarkerType.Inline:
                 ProcessInlineMarker(content, state);
@@ -93,25 +92,28 @@ public class UsfmParserStrategy
         }
     }
 
-    private static void ProcessMilestoneMarker(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ReadOnlySpan<char> extra, ParserState state)
+    private static void ProcessMilestoneMarker(LexerToken token, ParserState state)
     {
+        var style = GetStyle(token[0]);
+
         if (style.SequenceEqual("id"))
         {
-            SplitByFirstSpace(content, out var code, out var title);
-            state.Add(new BookNode("id", code.ToString(), title.ToString()));
+            var segments = UsfmLexerToken.Create(token, splitValue: true).Segments;
+            state.Add(new BookNode(segments[0], segments[1], segments[2]));
         }
         else if (style.SequenceEqual("c"))
         {
-            state.Add(new ChapterNode("c", content.ToString()));
+            state.Add(new ChapterNode("c", token[1].ToString()));
         }
         else if (style.SequenceEqual("v"))
         {
-            SplitByFirstSpace(content, out var number, out var verseText);
-            state.Add(new VerseNode("v", number.ToString(), verseText.ToString()));
+            var segments = UsfmLexerToken.Create(token, splitValue: true).Segments;
+            state.Add(new VerseNode(segments[0], segments[1]));
+            state.Add(new TextNode(segments[2]));
         }
         else
         {
-            ProcessAttributeMilestone(style, content, state);
+            ProcessAttributeMilestone(style, token[1], state);
         }
     }
 
@@ -156,21 +158,6 @@ public class UsfmParserStrategy
         else
         {
             state.Add(new TextNode(content.ToString()));
-        }
-    }
-
-    private static void SplitByFirstSpace(ReadOnlySpan<char> span, out ReadOnlySpan<char> first, out ReadOnlySpan<char> second)
-    {
-        int spaceIdx = span.IndexOf(' ');
-        if (spaceIdx != -1)
-        {
-            first = span[..spaceIdx];
-            second = span[(spaceIdx + 1)..];
-        }
-        else
-        {
-            first = span;
-            second = ReadOnlySpan<char>.Empty;
         }
     }
 

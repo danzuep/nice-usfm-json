@@ -1,4 +1,7 @@
-﻿namespace USFM.Visitors;
+﻿using USFM.Lexers;
+using USFM.Parsers;
+
+namespace USFM.Visitors;
 
 public interface IUsfmVisitor
 {
@@ -52,7 +55,8 @@ public static class UsfmVisitorExtensions
     public static void Accept(this IUsfmVisitor visitor, string rawUsfm)
     {
         if (string.IsNullOrEmpty(rawUsfm)) return;
-        var syntaxTree = UsfmParser.Parse(rawUsfm.AsSpan());
+        var strategy = new UsfmLexerStrategy(rawUsfm.AsSpan());
+        var syntaxTree = UsfmParserStrategy.Parse(ref strategy);
         visitor.Accept(syntaxTree);
     }
 
