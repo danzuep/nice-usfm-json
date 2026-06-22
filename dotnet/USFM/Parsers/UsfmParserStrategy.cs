@@ -32,17 +32,27 @@ public class UsfmParserStrategy
             _activeParaStyle = null;
         }
 
+        public void CloseRoot()
+        {
+            if (_activeParaStyle != null || _contentStack.Count == 0)
+            {
+                ClosePara();
+                return;
+            }
+            var content = _contentStack.Pop();
+            foreach (var node in content)
+                Root.Add(node);
+        }
+
         public void PushInline() => _contentStack.Push(new List<IUsfmNode>());
         public IList<IUsfmNode>? PopInline() => _contentStack.Count > 0 ? _contentStack.Pop() : null;
         public bool HasInline() => _contentStack.Count > 0;
-        public override string ToString() => Root.Count.ToString();
     }
 
     public static IReadOnlyList<IUsfmNode> Parse(string usfm)
     {
         var strategy = new UsfmLexerStrategy(usfm.AsSpan());
-        var syntaxTree = Parse(ref strategy);
-        return syntaxTree;
+        return Parse(ref strategy);
     }
 
     public static IReadOnlyList<IUsfmNode> Parse(ref UsfmLexerStrategy tokenizer)
@@ -54,56 +64,45 @@ public class UsfmParserStrategy
             ProcessToken(token, state);
         }
 
-        state.ClosePara();
+        state.CloseRoot();
         return state.Root;
     }
 
     private static void ProcessToken(LexerToken token, ParserState state)
     {
+        // Raw plain text node fallback
         if (token.Indices.Length == 0)
         {
             state.Add(new TextNode(token.ToString()));
             return;
         }
 
+        if (token.Span.TrimEnd(' ').EndsWith('*'))
+        {
+            ProcessAnnotation(token, state);
+        }
+
         var style = UsfmLexerStrategy.GetStyle(token[0]);
         var content = token[1].TrimEnd(' ');
 
-        if (style.IsEmpty)
+        switch (IdentifyMarker(style))
         {
-            state.Add(new TextNode(token.ToString()));
-            state.PushInline();
-        }
-        else if (style.SequenceEqual("v"))
-        {
-            var segments = UsfmLexerToken.CreateSplit(token).Segments;
-            state.Add(new VerseNode(segments[0], segments[1]));
-            state.Add(new TextNode(segments[2]));
-        }
-        else if (style.SequenceEqual("id"))
-        {
-            var segments = UsfmLexerToken.CreateSplit(token).Segments;
-            state.Add(new BookNode(segments[0], segments[1], segments[2]));
-        }
-        else if (style.SequenceEqual("c"))
-        {
-            state.Add(new ChapterNode("c", content.ToString()));
-        }
-        else if (style.EndsWith("-s"))
-        {
-            ProcessAttributeMilestone(style, content, state);
-        }
-        else if (style.EndsWith("-e") || style.EndsWith("*"))
-        {
-            ProcessClosingMarker(style, content, state);
-        }
-        else if (IdentifyBlock(style) || IdentifyPara(style))
-        {
-            ProcessBlockMarker(style, content, state);
-        }
-        else
-        {
-            ProcessInlineMarker(content, state);
+            case UsfmMarkerType.Block:
+                ProcessBlockMarker(style, content, state);
+                break;
+            case UsfmMarkerType.Milestone:
+                ProcessMilestoneMarker(style, token, state);
+                break;
+            case UsfmMarkerType.Inline:
+                ProcessInlineMarker(content, state);
+                break;
+            case UsfmMarkerType.Closing:
+                ProcessClosingMarker(style, content, state);
+                break;
+            case UsfmMarkerType.Text:
+                state.Add(new TextNode(token.ToString()));
+                state.PushInline();
+                break;
         }
     }
 
@@ -113,6 +112,29 @@ public class UsfmParserStrategy
         if (!content.IsEmpty)
         {
             state.Add(new TextNode(content.ToString()));
+        }
+    }
+
+    private static void ProcessMilestoneMarker(ReadOnlySpan<char> style, LexerToken token, ParserState state)
+    {
+        if (style.SequenceEqual("id"))
+        {
+            var segments = UsfmLexerToken.CreateSplit(token).Segments;
+            state.Add(new BookNode(segments[0], segments[1], segments[2]));
+        }
+        else if (style.SequenceEqual("c"))
+        {
+            state.Add(new ChapterNode("c", token[1].TrimEnd(' ').ToString()));
+        }
+        else if (style.SequenceEqual("v"))
+        {
+            var segments = UsfmLexerToken.CreateSplit(token).Segments;
+            state.Add(new VerseNode(segments[0], segments[1]));
+            state.Add(new TextNode(segments[2]));
+        }
+        else
+        {
+            ProcessMilestone(style, token[1].TrimEnd(' '), state);
         }
     }
 
@@ -135,7 +157,13 @@ public class UsfmParserStrategy
         }
     }
 
-    private static void ProcessAttributeMilestone(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ParserState state)
+    private static void ProcessAnnotation(LexerToken token, ParserState state)
+    {
+        var segments = new UsfmLexerToken(token).Segments;
+        state.Add(new AnnotationNode(segments[0], segments[1], segments[2]));
+    }
+
+    private static void ProcessMilestone(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ParserState state)
     {
         var attributes = UsfmAttributeParser.Parse(content, out int textStartIndex);
         state.Add(new MilestoneNode(style.ToString(), attributes));
@@ -151,34 +179,30 @@ public class UsfmParserStrategy
         }
     }
 
-    private static bool IdentifyPara(ReadOnlySpan<char> marker)
+    private static UsfmMarkerType IdentifyMarker(ReadOnlySpan<char> marker)
     {
-        return marker.StartsWith("p") || marker.StartsWith("s") || marker.SequenceEqual("r") || marker.SequenceEqual("m");
-    }
+        if (marker.IsEmpty) return UsfmMarkerType.Text;
 
-    private static bool IdentifyBlock(ReadOnlySpan<char> marker)
-    {
-        return marker.StartsWith("h") || marker.StartsWith("i") || marker.StartsWith("l") ||
+        if (marker.SequenceEqual("id") || marker.SequenceEqual("c") || marker.SequenceEqual("v") || marker.EndsWith("-s") || marker.EndsWith("-e"))
+            return UsfmMarkerType.Milestone;
+
+        if (marker.StartsWith("w"))
+            return UsfmMarkerType.Attribute;
+
+        if (marker.EndsWith("*") || marker.StartsWith("qt-e"))
+            return UsfmMarkerType.Closing;
+
+        if (marker.StartsWith("p") || marker.StartsWith("s") || marker.SequenceEqual("r") || marker.SequenceEqual("m") ||
+            marker.StartsWith("h") || marker.StartsWith("i") || marker.StartsWith("l") ||
             marker.StartsWith("t") || marker.StartsWith("q") || marker.StartsWith("cl") ||
             marker.StartsWith("ca") || marker.StartsWith("cp") || marker.StartsWith("cd") ||
             marker.StartsWith("mt") || marker.StartsWith("is") || marker.StartsWith("ip") ||
             marker.StartsWith("li") || marker.StartsWith("tr") || marker.StartsWith("th") ||
-            marker.StartsWith("tc") || marker.SequenceEqual("lh") || marker.SequenceEqual("usfm");
+            marker.StartsWith("tc") || marker.SequenceEqual("lh") || marker.SequenceEqual("usfm"))
+            return UsfmMarkerType.Block;
+
+        return UsfmMarkerType.Inline;
     }
 
-    private static void ParseNode(LexerToken token, ParserState state)
-    {
-        //switch (style)
-        //{
-        //    case CharNode w: visitor.Visit(w); break;
-        //    case ParaNode p: visitor.Visit(p); break;
-        //    case NoteNode n: visitor.Visit(n); break;
-        //    case LineBreakNode br: visitor.Visit(br); break;
-        //    //case AnnotationNode a: visitor.Visit(a); break;
-        //    case BookNode b: visitor.Visit(b); break;
-        //    case TableNode t: visitor.Visit(t); break;
-        //    case RowNode r: visitor.Visit(r); break;
-        //    case CellNode l: visitor.Visit(l); break;
-        //}
-    }
+    private enum UsfmMarkerType { Block, Milestone, Inline, Closing, Text, Attribute }
 }

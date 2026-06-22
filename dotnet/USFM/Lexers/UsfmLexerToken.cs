@@ -42,7 +42,7 @@ internal readonly ref struct UsfmLexerToken
             {
                 value = Style;
             }
-            else if (textIndex >= 0 && i == textIndex)
+            else if (!hasClosingStar && textIndex >= 0 && i == textIndex)
             {
                 value = _token[i];
             }
