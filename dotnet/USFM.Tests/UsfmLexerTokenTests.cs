@@ -7,13 +7,11 @@ public class UsfmLexerTokenTests
     [Test]
     public async Task Verse()
     {
-        var expected = @"\v 1 verse";
-        var lexer = UsfmLexerTokenDto.Tokenize(expected).Single();
-        var split = lexer.Segments[1].Split(' ');
-        await Assert.That(lexer.Raw).IsEqualTo(expected);
-        await Assert.That(lexer.Style).IsEqualTo("v");
-        await Assert.That(split[0]).IsEqualTo("1");
-        await Assert.That(split[1]).IsEqualTo("verse");
+        var input = @"\v 1 verse";
+        var segments = UsfmLexerToken.CreateSegments(input);
+        await Assert.That(segments[0]).IsEqualTo("v");
+        await Assert.That(segments[1]).IsEqualTo("1");
+        await Assert.That(segments[2]).IsEqualTo("verse");
     }
 
     [Test]

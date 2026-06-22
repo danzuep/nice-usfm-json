@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using USFM.Lexers;
 
 namespace USFM.Visitors;
 
@@ -17,7 +18,7 @@ public sealed class BookNode : IUsfmNode
     public string Code { get; }
     public string? Description { get; }
     public BookNode(string style, string? code, string? description = null)
-    { Style = style; Code = code ?? string.Empty; Description = description; }
+        { Style = style; Code = code ?? string.Empty; Description = description; }
 
     public override string ToString()
     {

@@ -13,25 +13,27 @@ internal readonly ref struct UsfmLexerToken
 
     public readonly IReadOnlyList<string> Segments => GetSegments();
 
-    internal static UsfmLexerToken Create(LexerToken token, bool splitValue = false)
+    internal static UsfmLexerToken CreateSplit(LexerToken token)
     {
-        if (splitValue)
-        {
-            var splitToken = UsfmLexerStrategy.SplitValue(token);
-            return new UsfmLexerToken(splitToken);
-        }
-
-        return new UsfmLexerToken(token);
+        var splitToken = UsfmLexerStrategy.SplitValue(token);
+        return new UsfmLexerToken(splitToken);
     }
 
-    private string[] GetSegments()
+    internal static IReadOnlyList<string> CreateSegments(string input)
+    {
+        var tokenizer = new UsfmLexerStrategy(input.AsSpan());
+        _ = tokenizer.TryMoveNext(out var token);
+        return CreateSplit(token).Segments;
+    }
+
+    internal string[] GetSegments(int min = 3)
     {
         var hasClosingStar = _token.Indices.Length > 0 &&
             _token[_token.Indices.Length].Trim(' ').EndsWith('*');
         var textIndex = hasClosingStar ?
             _token.Indices.Length - 1 :
             _token.Indices.Length;
-        var size = Math.Max(_token.Indices.Length + 1, 3);
+        var size = Math.Max(_token.Indices.Length + 1, min);
         var result = new string[size];
         for (int i = 0; i < size; i++)
         {
