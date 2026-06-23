@@ -29,7 +29,7 @@ internal readonly ref struct UsfmLexerToken
     internal string[] GetSegments(int min = 3)
     {
         var hasClosingStar = _token.Indices.Length > 0 &&
-            _token[_token.Indices.Length].Trim(' ').EndsWith('*');
+            _token[_token.Indices.Length].TrimEnd(' ').EndsWith('*');
         var textIndex = hasClosingStar ?
             _token.Indices.Length - 1 :
             _token.Indices.Length;
@@ -48,12 +48,18 @@ internal readonly ref struct UsfmLexerToken
             }
             else
             {
-                value = _token[i].Trim(' ');
+                value = _token[i].TrimEnd(' ');
             }
             result[i] = value.ToString();
         }
         return result;
     }
+
+    public ReadOnlySpan<char> this[int index] =>
+        _token[index];
+
+    public string Trimmed(int index) =>
+        _token[index].TrimEnd(' ').ToString();
 
     public override string ToString() => _token.ToString();
 }

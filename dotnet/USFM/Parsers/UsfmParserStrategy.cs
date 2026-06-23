@@ -1,4 +1,5 @@
-﻿using USFM.Lexers;
+﻿using System.Reflection.Metadata;
+using USFM.Lexers;
 using USFM.Visitors;
 
 namespace USFM.Parsers;
@@ -80,6 +81,7 @@ public class UsfmParserStrategy
         if (token.Span.TrimEnd(' ').EndsWith('*'))
         {
             ProcessAnnotation(token, state);
+            return;
         }
 
         var style = UsfmLexerStrategy.GetStyle(token[0]);
@@ -108,7 +110,10 @@ public class UsfmParserStrategy
 
     private static void ProcessBlockMarker(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ParserState state)
     {
-        state.OpenPara(style.ToString());
+        if (style.StartsWith('p'))
+        {
+            state.OpenPara(style.ToString());
+        }
         if (!content.IsEmpty)
         {
             state.Add(new TextNode(content.ToString()));
@@ -120,7 +125,7 @@ public class UsfmParserStrategy
         if (style.SequenceEqual("id"))
         {
             var segments = UsfmLexerToken.CreateSplit(token).Segments;
-            state.Add(new BookNode(segments[0], segments[1], segments[2]));
+            state.Add(new BookNode("id", segments[1], segments[2]));
         }
         else if (style.SequenceEqual("c"))
         {
@@ -128,9 +133,12 @@ public class UsfmParserStrategy
         }
         else if (style.SequenceEqual("v"))
         {
-            var segments = UsfmLexerToken.CreateSplit(token).Segments;
-            state.Add(new VerseNode(segments[0], segments[1]));
-            state.Add(new TextNode(segments[2]));
+            var verse = UsfmLexerToken.CreateSplit(token);
+            state.Add(new VerseNode("v", verse.Trimmed(1)));
+            if (!verse[2].IsEmpty)
+            {
+                state.Add(new TextNode(verse[2].ToString()));
+            }
         }
         else
         {

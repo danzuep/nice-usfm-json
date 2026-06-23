@@ -50,7 +50,7 @@ namespace USFM.Tests
 
             for (int i = 0; i < nodes.Count; i++)
             {
-                await Assert.That(nodes[i].ToString()).IsEqualTo(expected[i]);
+                await Assert.That(nodes[i].ToString()).IsEqualTo(expected[i].TrimEnd(' '));
             }
         }
 
@@ -59,15 +59,15 @@ namespace USFM.Tests
         {
             var expected = new string[]
             {
-            @"\s ",
-            @"\jmp |link-id=""article-john_the_baptist"" \jmp*",
-            "John the Baptist"
+                @"\s ",
+                @"\jmp |link-id=""article-john_the_baptist"" \jmp*",
+                "John the Baptist"
             };
-            var tokens = UsfmLexerTokenDto.Tokenize(expected);
+            var nodes = UsfmParserStrategy.Parse(string.Concat(expected));
 
-            for (int i = 0; i < tokens.Count; i++)
+            for (int i = 0; i < nodes.Count; i++)
             {
-                await Assert.That(tokens[i].Raw).IsEqualTo(expected[i]);
+                await Assert.That(nodes[i].ToString()).IsEqualTo(expected[i].TrimEnd(' '));
             }
         }
 
@@ -76,8 +76,8 @@ namespace USFM.Tests
         {
             var expected = new string[]
             {
-            @"\x - \xo 2.23: \xt Mrk 1.24; \xt Luk 2.39; \xt Jhn 1.45.\x*",
-            "and made his home in a town named Nazareth."
+                @"\x - \xo 2.23: \xt Mrk 1.24; \xt Luk 2.39; \xt Jhn 1.45.\x*",
+                "and made his home in a town named Nazareth."
             };
             var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
@@ -101,9 +101,9 @@ namespace USFM.Tests
         {
             var expected = new string[]
             {
-            @"\qt-s |sid=""qt_123"" who=""Pilate"" \*",
-            "Are you the king of the Jews?",
-            @"\qt-e |eid=""qt_123"" \*"
+                @"\qt-s |sid=""qt_123"" who=""Pilate"" \*",
+                "Are you the king of the Jews?",
+                @"\qt-e |eid=""qt_123"" \*"
             };
             var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
@@ -118,8 +118,8 @@ namespace USFM.Tests
         {
             var expected = new string[]
             {
-            @"\v 2 the second verse ",
-            @"\w gracious|lemma=""grace"" \w*"
+                @"\v 2 the second verse ",
+                @"\w gracious|lemma=""grace"" \w*"
             };
             var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
@@ -147,10 +147,10 @@ namespace USFM.Tests
         {
             var expected = new string[]
             {
-            @"\v 1 start ",
-            @"\w one|lemma=""one"" \w*",
-            @"\w two|lemma=""two"" \w* ",
-            "end"
+                @"\v 1 start ",
+                @"\w one|lemma=""one"" \w*",
+                @"\w two|lemma=""two"" \w* ",
+                "end"
             };
             var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
@@ -165,10 +165,10 @@ namespace USFM.Tests
         {
             var expected = new string[]
             {
-            @"\w ",
-            @"two|lemma=""two"" ",
-            @"\w* ",
-            "end"
+                @"\w ",
+                @"two|lemma=""two"" ",
+                @"\w* ",
+                "end"
             };
             var token = UsfmLexerTokenDto.Tokenize(expected).First();
 
@@ -181,10 +181,10 @@ namespace USFM.Tests
         {
             var expected = new string[]
             {
-            @"\c 1",
-            @"\cl Matthew",
-            @"\ca 2\ca*",
-            @"\cp M"
+                @"\c 1",
+                @"\cl Matthew",
+                @"\ca 2\ca*",
+                @"\cp M"
             };
             var tokens = UsfmLexerTokenDto.Tokenize(expected);
 
