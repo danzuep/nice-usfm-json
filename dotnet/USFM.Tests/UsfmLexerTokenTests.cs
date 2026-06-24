@@ -2,13 +2,23 @@ using USFM.Lexers;
 
 namespace USFM.Tests;
 
-public class UsfmLexerTokenTests 
+public class UsfmLexerTokenTests
 {
     [Test]
-    public async Task Verse()
+    public async Task VerseSplitSegments()
     {
         var input = @"\v 1 verse";
-        var segments = UsfmLexerToken.CreateSegments(input);
+        var usfm = SplitSegments(input);
+        await Assert.That(usfm[0]).IsEqualTo("v");
+        await Assert.That(usfm[1]).IsEqualTo("1");
+        await Assert.That(usfm[2]).IsEqualTo("verse");
+    }
+
+    [Test]
+    public async Task VerseSplitValueSegments()
+    {
+        var input = @"\v 1 verse";
+        var segments = SplitValue(input).Segments;
         await Assert.That(segments[0]).IsEqualTo("v");
         await Assert.That(segments[1]).IsEqualTo("1");
         await Assert.That(segments[2]).IsEqualTo("verse");
@@ -179,5 +189,26 @@ public class UsfmLexerTokenTests
         {
             await Assert.That(tokens[i].Raw).IsEqualTo(expected[i]);
         }
+    }
+
+    internal static UsfmLexerToken SplitValue(ReadOnlySpan<char> input)
+    {
+        var tokenizer = new UsfmLexerStrategy(input);
+        _ = tokenizer.TryMoveNext(out var token);
+        return UsfmLexerToken.SplitValue(token);
+    }
+
+    internal static string[] SplitSegments(ReadOnlySpan<char> input, bool split = true)
+    {
+        var tokenizer = new UsfmLexerStrategy(input);
+        _ = tokenizer.TryMoveNext(out var token);
+        var usfm = split ? UsfmLexerToken.SplitValue(token) : new UsfmLexerToken(token);
+        var result = new string[3]
+        {
+            usfm.Style.ToString(),
+            usfm.Content.ToString(),
+            usfm.Extra.ToString(),
+        };
+        return result;
     }
 }

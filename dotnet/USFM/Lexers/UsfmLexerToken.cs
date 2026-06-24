@@ -8,32 +8,39 @@ internal readonly ref struct UsfmLexerToken
         _token = token;
     }
 
-    public readonly ReadOnlySpan<char> Style =>
-        UsfmLexerStrategy.GetStyle(_token[0]);
-
-    public readonly IReadOnlyList<string> Segments => GetSegments();
-
-    internal static UsfmLexerToken CreateSplit(LexerToken token)
+    internal static UsfmLexerToken SplitValue(LexerToken token)
     {
         var splitToken = UsfmLexerStrategy.SplitValue(token);
         return new UsfmLexerToken(splitToken);
     }
 
-    internal static IReadOnlyList<string> CreateSegments(string input)
-    {
-        var tokenizer = new UsfmLexerStrategy(input.AsSpan());
-        _ = tokenizer.TryMoveNext(out var token);
-        return CreateSplit(token).Segments;
-    }
+    public readonly int Count =>
+        _token.Indices.Length;
+
+    public readonly ReadOnlySpan<char> Style =>
+        UsfmLexerStrategy.GetStyle(_token[0]);
+
+    public readonly ReadOnlySpan<char> First =>
+        Count > 1 ? _token[1] : ReadOnlySpan<char>.Empty;
+
+    public readonly ReadOnlySpan<char> Last =>
+        Count > 0 ? _token[Count] : ReadOnlySpan<char>.Empty;
+
+    public readonly ReadOnlySpan<char> Content =>
+        HasClosingStar ? First : First.TrimEnd(' ');
+
+    public readonly ReadOnlySpan<char> Extra =>
+        HasClosingStar ? Last.TrimEnd(' ') : Last;
+
+    public readonly bool HasClosingStar =>
+        Count > 0 && _token[Count].TrimEnd(' ').EndsWith('*');
+
+    public readonly IReadOnlyList<string> Segments => GetSegments();
 
     internal string[] GetSegments(int min = 3)
     {
-        var hasClosingStar = _token.Indices.Length > 0 &&
-            _token[_token.Indices.Length].TrimEnd(' ').EndsWith('*');
-        var textIndex = hasClosingStar ?
-            _token.Indices.Length - 1 :
-            _token.Indices.Length;
-        var size = Math.Max(_token.Indices.Length + 1, min);
+        var textIndex = HasClosingStar ? Count - 1 : Count;
+        var size = Math.Max(Count + 1, min);
         var result = new string[size];
         for (int i = 0; i < size; i++)
         {
@@ -42,7 +49,7 @@ internal readonly ref struct UsfmLexerToken
             {
                 value = Style;
             }
-            else if (!hasClosingStar && textIndex >= 0 && i == textIndex)
+            else if (!HasClosingStar && textIndex >= 0 && i == textIndex)
             {
                 value = _token[i];
             }

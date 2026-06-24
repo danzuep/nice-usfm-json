@@ -50,9 +50,9 @@ public class UsfmParserStrategy
         public bool HasInline() => _contentStack.Count > 0;
     }
 
-    public static IReadOnlyList<IUsfmNode> Parse(string usfm)
+    public static IReadOnlyList<IUsfmNode> Parse(ReadOnlySpan<char> usfm)
     {
-        var strategy = new UsfmLexerStrategy(usfm.AsSpan());
+        var strategy = new UsfmLexerStrategy(usfm);
         return Parse(ref strategy);
     }
 
@@ -124,7 +124,7 @@ public class UsfmParserStrategy
     {
         if (style.SequenceEqual("id"))
         {
-            var segments = UsfmLexerToken.CreateSplit(token).Segments;
+            var segments = UsfmLexerToken.SplitValue(token).Segments;
             state.Add(new BookNode("id", segments[1], segments[2]));
         }
         else if (style.SequenceEqual("c"))
@@ -133,7 +133,7 @@ public class UsfmParserStrategy
         }
         else if (style.SequenceEqual("v"))
         {
-            var verse = UsfmLexerToken.CreateSplit(token);
+            var verse = UsfmLexerToken.SplitValue(token);
             state.Add(new VerseNode("v", verse.Trimmed(1)));
             if (!verse[2].IsEmpty)
             {
