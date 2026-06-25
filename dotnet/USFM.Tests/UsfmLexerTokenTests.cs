@@ -195,14 +195,14 @@ public class UsfmLexerTokenTests
     {
         var tokenizer = new UsfmLexerStrategy(input);
         _ = tokenizer.TryMoveNext(out var token);
-        return UsfmLexerToken.SplitValue(token);
+        return new UsfmLexerToken(token).SplitValue();
     }
 
     internal static string[] SplitSegments(ReadOnlySpan<char> input, bool split = true)
     {
         var tokenizer = new UsfmLexerStrategy(input);
         _ = tokenizer.TryMoveNext(out var token);
-        var usfm = split ? UsfmLexerToken.SplitValue(token) : new UsfmLexerToken(token);
+        var usfm = split ? new UsfmLexerToken(token).SplitValue() : new UsfmLexerToken(token);
         var result = new string[3]
         {
             usfm.Style.ToString(),

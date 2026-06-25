@@ -124,7 +124,7 @@ public class UsfmParserStrategy
     {
         if (style.SequenceEqual("id"))
         {
-            var segments = UsfmLexerToken.SplitValue(token).Segments;
+            var segments = new UsfmLexerToken(token).SplitValue().Segments;
             state.Add(new BookNode("id", segments[1], segments[2]));
         }
         else if (style.SequenceEqual("c"))
@@ -133,7 +133,7 @@ public class UsfmParserStrategy
         }
         else if (style.SequenceEqual("v"))
         {
-            var verse = UsfmLexerToken.SplitValue(token);
+            var verse = new UsfmLexerToken(token).SplitValue();
             state.Add(new VerseNode("v", verse.Trimmed(1)));
             if (!verse[2].IsEmpty)
             {

@@ -8,9 +8,9 @@ internal readonly ref struct UsfmLexerToken
         _token = token;
     }
 
-    internal static UsfmLexerToken SplitValue(LexerToken token)
+    internal UsfmLexerToken SplitValue()
     {
-        var splitToken = UsfmLexerStrategy.SplitValue(token);
+        var splitToken = UsfmLexerStrategy.SplitValue(_token);
         return new UsfmLexerToken(splitToken);
     }
 
