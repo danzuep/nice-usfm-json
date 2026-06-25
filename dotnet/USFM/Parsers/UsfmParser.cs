@@ -85,45 +85,25 @@ public class UsfmParser
     {
         return new ParaNode(token.Style.ToString());
     }
-
     private static IUsfmNode CreateVerse(UsfmLexerToken token)
     {
-        // Verse typically has: marker "v", verse number, and optional suffix (like 1a, 2b)
-        string verseNumber = token.Segments.Count > 1 ? token.Segments[1] : string.Empty;
-        string suffix = token.Segments.Count > 2 ? token.Segments[2] : string.Empty;
-
-        var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-
-        return new VerseNode("v", verseNumber, suffix, attributes);
+        return new VerseNode("v", token.Content.ToString(), token.Extra.ToString());
     }
 
     private static IUsfmNode CreateChapter(UsfmLexerToken token)
     {
-        string chapterNumber = token.Segments.Count > 1 ? token.Segments[1] : string.Empty;
-        var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-
-        return new ChapterNode("c", chapterNumber, attributes);
+        return new ChapterNode("c", token.Content.ToString());
     }
 
     private static IUsfmNode CreateMilestone(UsfmLexerToken token)
     {
         var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-
-        return new MilestoneNode(
-            token.Style.ToString(),
-            attributes
-        );
+        return new MilestoneNode(token.Style.ToString(), attributes);
     }
 
     private static IUsfmNode CreateBook(UsfmLexerToken token)
     {
-        // Book marker usually contains: id, book code (e.g. GEN), and book name
-        string bookCode = token.Segments.Count > 1 ? token.Segments[1] : string.Empty;
-        string bookName = token.Segments.Count > 2 ? token.Segments[2] : string.Empty;
-
-        var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-
-        return new BookNode("id", bookCode, bookName, attributes);
+        return new BookNode("id", token.Content.ToString(), token.Extra.ToString());
     }
 
     private static IUsfmNode CreateChar(UsfmLexerToken token)
@@ -156,43 +136,6 @@ public class UsfmParser
     {
         return new CellNode(token.Style.ToString(), token.Content.ToString());
     }
-
-    //// ==================== Additional common USFM node creators ====================
-
-    //private static IUsfmNode CreateFootnote(UsfmLexerToken token)
-    //{
-    //    var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-    //    return new FootnoteNode(token.Style.ToString(), token.Content?.ToString() ?? string.Empty, attributes);
-    //}
-
-    //private static IUsfmNode CreateCrossReference(UsfmLexerToken token)
-    //{
-    //    var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-    //    return new CrossReferenceNode(token.Style.ToString(), token.Content?.ToString() ?? string.Empty, attributes);
-    //}
-
-    //private static IUsfmNode CreatePoetry(UsfmLexerToken token)
-    //{
-    //    var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-    //    return new PoetryNode(token.Style.ToString(), attributes);
-    //}
-
-    //private static IUsfmNode CreateList(UsfmLexerToken token)
-    //{
-    //    var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-    //    return new ListNode(token.Style.ToString(), attributes);
-    //}
-
-    //private static IUsfmNode CreateHeader(UsfmLexerToken token)
-    //{
-    //    return new HeaderNode(token.Style.ToString(), token.Content?.ToString() ?? string.Empty);
-    //}
-
-    //private static IUsfmNode CreateTitle(UsfmLexerToken token)
-    //{
-    //    var attributes = UsfmAttributeParser.Parse(token.ToString(), out _);
-    //    return new TitleNode(token.Style.ToString(), token.Content?.ToString() ?? string.Empty, attributes);
-    //}
 
     public enum UsfmMarkerType { Unknown, Text, Char, Para, Verse, Chapter, Note, LineBreak, Milestone, Book, Table, Row, Cell }
 }
