@@ -45,7 +45,16 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
         AddToResult(CreateVerse(node, Context.ToString()));
     }
 
-    public virtual void Visit(ParaNode node) => AddToResult(CreatePara(node, ProcessChildren(node.Content)));
+    public virtual void Visit(ParaNode node)
+    {
+        var containsVerse = node.Content?.Any(child => child is VerseNode) == true;
+        var children = ProcessChildren(node.Content);
+        var hasInlineContinuation = node.Content?.Any(child => child is CharNode) == true;
+        var canHaveVid = !string.Equals(node.Style, "iex", StringComparison.OrdinalIgnoreCase) &&
+            (!node.Style.StartsWith("s", StringComparison.OrdinalIgnoreCase) || hasInlineContinuation);
+        var vid = containsVerse || !canHaveVid || string.IsNullOrEmpty(Context.Verse) ? null : Context.ToString();
+        AddToResult(CreatePara(node, vid, children));
+    }
     public virtual void Visit(CharNode node) => AddToResult(CreateChar(node, ProcessChildren(node.Content)));
     public virtual void Visit(TextNode node) => AddToResult(CreateText(node));
     public virtual void Visit(NoteNode node) => AddToResult(CreateNote(node, ProcessChildren(node.Content)));
@@ -62,7 +71,7 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
     protected abstract TNode CreateBook(BookNode node);
     protected abstract TNode CreateChapter(ChapterNode node, string sid);
     protected abstract TNode CreateVerse(VerseNode node, string vid);
-    protected abstract TNode CreatePara(ParaNode node, IList<TNode>? children);
+    protected abstract TNode CreatePara(ParaNode node, string? vid, IList<TNode>? children);
     protected abstract TNode CreateChar(CharNode node, IList<TNode>? children);
     protected abstract TNode CreateText(TextNode node);
     protected abstract TNode CreateNote(NoteNode node, IList<TNode>? children);

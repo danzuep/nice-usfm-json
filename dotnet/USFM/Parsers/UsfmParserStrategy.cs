@@ -16,6 +16,7 @@ public class UsfmParserStrategy
         private List<IUsfmNode>? _cellContent;
         private string? _cellStyle;
         private string? _activeParaStyle;
+        private string _pendingWhitespace = string.Empty;
 
         public void Add(IUsfmNode node)
         {
@@ -86,6 +87,15 @@ public class UsfmParserStrategy
         }
 
         public bool HasInline() => _inlineStyles.Count > 0;
+
+        public void SetPendingWhitespace(string whitespace) => _pendingWhitespace = whitespace;
+
+        public string ConsumePendingWhitespace()
+        {
+            var whitespace = _pendingWhitespace;
+            _pendingWhitespace = string.Empty;
+            return whitespace;
+        }
 
         public string? CurrentInlineStyle => _inlineStyles.Count > 0 ? _inlineStyles.Peek() : null;
 
@@ -162,17 +172,41 @@ public class UsfmParserStrategy
         {
             var text = token.ToString();
             if (!string.IsNullOrWhiteSpace(text))
-                state.Add(new TextNode(text));
+            {
+                var hadLineEnding = text.EndsWith("\r\n", StringComparison.Ordinal) ||
+                    text.EndsWith('\n') || text.EndsWith('\r');
+                text = text.TrimEnd('\r', '\n');
+                if (hadLineEnding) text += " ";
+                state.Add(new TextNode(state.ConsumePendingWhitespace() + text));
+            }
+            return;
+        }
+
+        var markerStyle = UsfmLexerStrategy.GetStyle(token[0]);
+        if ((markerStyle.EndsWith("-s") || markerStyle.EndsWith("-e")) &&
+            token.Span.Contains("\\*".AsSpan(), StringComparison.Ordinal))
+        {
+            ProcessMilestoneMarker(markerStyle, token, state);
+            return;
+        }
+        if ((markerStyle.SequenceEqual("f") || markerStyle.SequenceEqual("x")) &&
+            token.Span.Contains($"\\{markerStyle}*".AsSpan(), StringComparison.Ordinal))
+        {
+            ProcessAnnotation(token, state);
             return;
         }
 
         if (token.Span.TrimEnd(' ').EndsWith('*'))
         {
             ProcessAnnotation(token, state);
+            var markerEnd = token.Span.LastIndexOf('*');
+            if (markerEnd >= 0 && markerEnd + 1 < token.Span.Length)
+                state.SetPendingWhitespace(token.Span[(markerEnd + 1)..].ToString());
             return;
         }
 
         var style = UsfmLexerStrategy.GetStyle(token[0]);
+        style = style.TrimStart('+');
         var content = token[1];
         if (!content.IsEmpty && content[0] != '\\')
             content = content.TrimEnd();
@@ -187,6 +221,9 @@ public class UsfmParserStrategy
                 break;
             case UsfmMarkerType.Inline:
                 ProcessInlineMarker(style, content, state);
+                break;
+            case UsfmMarkerType.Attribute:
+                ProcessAnnotation(token, state);
                 break;
             case UsfmMarkerType.Closing:
                 ProcessClosingMarker(style, token[1], state);
@@ -269,9 +306,14 @@ public class UsfmParserStrategy
         var inlineNode = state.PopInline();
         if (inlineNode != null)
             state.Add(inlineNode);
+        var markerEnd = content.LastIndexOf('*');
+        if (markerEnd >= 0 && markerEnd + 1 < content.Length)
+            state.SetPendingWhitespace(content[(markerEnd + 1)..].ToString());
         if (!content.IsEmpty)
         {
-            state.Add(new TextNode(content.ToString()));
+            var beforeMarker = markerEnd >= 0 ? content[..markerEnd].ToString() : content.ToString();
+            if (beforeMarker.Length > 0)
+                state.Add(new TextNode(beforeMarker));
         }
     }
 
@@ -279,6 +321,7 @@ public class UsfmParserStrategy
     {
         var segments = new UsfmLexerToken(token).Segments;
         var style = segments[0];
+        style = style.TrimStart('+');
         var content = segments[1];
 
         if (style is "f" or "x")
@@ -286,18 +329,7 @@ public class UsfmParserStrategy
             var callerEnd = content.IndexOf(' ');
             var caller = callerEnd < 0 ? content : content[..callerEnd];
             var nestedRaw = callerEnd < 0 ? string.Empty : content[(callerEnd + 1)..];
-            var nested = nestedRaw.Length == 0 ? null : Parse(nestedRaw).ToList();
-            if (nested != null)
-            {
-                for (var index = 0; index < nested.Count; index++)
-                {
-                    if (nested[index] is CharNode { Style: "xo" or "xt" } character)
-                    {
-                        nested[index] = new CharNode(character.Style, character.Content,
-                            new Dictionary<string, string> { ["closed"] = "false" });
-                    }
-                }
-            }
+            var nested = ParseNoteContent(nestedRaw);
             state.Add(new NoteNode(style, caller, nested));
             return;
         }
@@ -305,6 +337,7 @@ public class UsfmParserStrategy
         var pipe = content.IndexOf('|');
         var text = pipe < 0 ? content : content[..pipe];
         var children = text.Length == 0 ? new List<IUsfmNode>() : Parse(text.ToString()).ToList();
+        children.RemoveAll(child => child is CharNode { Content: null or { Count: 0 } });
         IReadOnlyDictionary<string, string> attributes = new Dictionary<string, string>();
         if (style.SequenceEqual("ca"))
             attributes = new Dictionary<string, string> { ["status"] = "invalid" };
@@ -320,6 +353,34 @@ public class UsfmParserStrategy
         }
 
         state.Add(new CharNode(style, children, attributes));
+    }
+
+    private static IList<IUsfmNode>? ParseNoteContent(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        var result = new List<IUsfmNode>();
+        var position = 0;
+        while (position < raw.Length)
+        {
+            var markerStart = raw.IndexOf('\\', position);
+            if (markerStart < 0) break;
+            var styleStart = markerStart + 1;
+            var styleEnd = styleStart;
+            while (styleEnd < raw.Length && !char.IsWhiteSpace(raw[styleEnd]) && raw[styleEnd] != '*')
+                styleEnd++;
+            var contentStart = styleEnd < raw.Length && raw[styleEnd] == '*' ? styleEnd + 1 : styleEnd;
+            var nextMarker = raw.IndexOf('\\', contentStart);
+            var textEnd = nextMarker < 0 ? raw.Length : nextMarker;
+            var text = raw[contentStart..textEnd].Trim();
+            if (styleEnd > styleStart && text.Length > 0)
+            {
+                result.Add(new CharNode(raw[styleStart..styleEnd], [new TextNode(text)],
+                    new Dictionary<string, string> { ["closed"] = "false" }));
+            }
+            position = nextMarker < 0 ? raw.Length : nextMarker;
+        }
+        return result.Count == 0 ? null : result;
     }
 
     private static void ProcessMilestone(ReadOnlySpan<char> style, ReadOnlySpan<char> content, ParserState state)
@@ -342,6 +403,8 @@ public class UsfmParserStrategy
     {
         if (marker.IsEmpty) return UsfmMarkerType.Text;
 
+        if (marker.SequenceEqual("ior")) return UsfmMarkerType.Inline;
+
         if (marker.SequenceEqual("id") || marker.SequenceEqual("c") || marker.SequenceEqual("v") || marker.EndsWith("-s") || marker.EndsWith("-e"))
             return UsfmMarkerType.Milestone;
 
@@ -359,6 +422,7 @@ public class UsfmParserStrategy
             marker.StartsWith("t") || marker.StartsWith("q") || marker.StartsWith("cl") ||
             marker.SequenceEqual("cp") || marker.SequenceEqual("cd") ||
             marker.StartsWith("mt") || marker.StartsWith("is") || marker.StartsWith("ip") ||
+            marker.SequenceEqual("ior") ||
             marker.StartsWith("li") || marker.StartsWith("tr") || marker.StartsWith("th") ||
             marker.StartsWith("tc") || marker.SequenceEqual("lh") || marker.SequenceEqual("usfm"))
             return UsfmMarkerType.Block;

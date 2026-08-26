@@ -86,6 +86,12 @@ public sealed class CharNode : IUsfmNode
     {
         var sb = new StringBuilder();
         sb.AppendFormat("\\{0}", Style);
+        if (Attributes.Count > 0)
+        {
+            sb.Append(" |");
+            foreach (var attribute in Attributes)
+                sb.Append($"{attribute.Key}=\"{attribute.Value}\" ");
+        }
         if (Content != null && Content.Count > 0)
         {
             var first = Content[0]?.ToString() ?? string.Empty;

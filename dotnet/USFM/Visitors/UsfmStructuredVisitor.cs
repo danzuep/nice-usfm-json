@@ -11,7 +11,7 @@ public class UsfmStructuredVisitor : BaseStructuredVisitor<IUsfmNode>
     protected override IUsfmNode CreateVerse(VerseNode node, string vid) =>
         new VerseNode(node.Style, node.Number, node.Text);
 
-    protected override IUsfmNode CreatePara(ParaNode node, IList<IUsfmNode>? children) =>
+    protected override IUsfmNode CreatePara(ParaNode node, string? vid, IList<IUsfmNode>? children) =>
         new ParaNode(node.Style, children);
 
     protected override IUsfmNode CreateChar(CharNode node, IList<IUsfmNode>? children) =>

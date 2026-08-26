@@ -15,8 +15,8 @@ public class UsjConvertingVisitor : BaseStructuredVisitor<IUsjNode>
     protected override IUsjNode CreateVerse(VerseNode node, string startId) =>
         new UsjVerse(node.Number, startId, node.Style);
 
-    protected override IUsjNode CreatePara(ParaNode node, IList<IUsjNode>? children) =>
-        new UsjPara(null, children, node.Style);
+    protected override IUsjNode CreatePara(ParaNode node, string? vid, IList<IUsjNode>? children) =>
+        new UsjPara(vid, children, node.Style);
 
     protected override IUsjNode CreateChar(CharNode node, IList<IUsjNode>? children)
     {

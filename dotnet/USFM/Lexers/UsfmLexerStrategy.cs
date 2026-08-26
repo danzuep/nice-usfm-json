@@ -56,6 +56,7 @@ public ref struct UsfmLexerStrategy
     {
         var originalRemaining = _remaining;
         int styleEndIndex = FindStyleEndIndex();
+
         int contentStart = styleEndIndex < originalRemaining.Length ?
             styleEndIndex + 1 :
             styleEndIndex;
@@ -70,6 +71,7 @@ public ref struct UsfmLexerStrategy
 
         var content = originalRemaining[contentStart..];
         var nextBackslash = content.IndexOf(Backslash);
+        var openingStyle = GetStyle(originalRemaining[..styleEndIndex]);
 
         // Scenario A: End of stream reached with no trailing elements
         if (nextBackslash == -1)
@@ -79,7 +81,8 @@ public ref struct UsfmLexerStrategy
         }
 
         // Scenario B: Look ahead for closing style tags (\f* or milestone terminations)
-        if (TryFindClosingBounds(content, originalRemaining[..contentStart], out int closeStart, out int closeEnd))
+        if (CanHaveClosingMarker(openingStyle) &&
+            TryFindClosingBounds(content, originalRemaining[..contentStart], out int closeStart, out int closeEnd))
         {
             int absoluteCloseStart = contentStart + closeStart;
             int absoluteCloseEnd = contentStart + closeEnd;
@@ -103,32 +106,44 @@ public ref struct UsfmLexerStrategy
         return index;
     }
 
+    private static bool CanHaveClosingMarker(ReadOnlySpan<char> style) =>
+        style.StartsWith("f") || style.StartsWith("x") || style.StartsWith("w") ||
+        style.SequenceEqual("ms") || style.EndsWith("-s") || style.EndsWith("-e") ||
+        (!style.StartsWith("p") && !style.StartsWith("q") && !style.StartsWith("s") &&
+         !style.StartsWith("h") && !style.StartsWith("i") && !style.StartsWith("l") &&
+         !style.StartsWith("t") && !style.StartsWith("m") && !style.SequenceEqual("id") &&
+         !style.SequenceEqual("c") && !style.SequenceEqual("v"));
+
     private bool TryFindClosingBounds(ReadOnlySpan<char> content, ReadOnlySpan<char> styleHeader, out int start, out int end)
     {
         start = end = 0;
-        int nextAsterisk = content.IndexOf(Asterisk);
-        if (nextAsterisk == -1) return false;
-
-        int backslashIdx = nextAsterisk - 1;
-        while (backslashIdx >= 0 && content[backslashIdx] != Backslash)
+        var searchStart = 0;
+        while (searchStart < content.Length)
         {
-            backslashIdx--;
-        }
+            var relativeAsterisk = content[searchStart..].IndexOf(Asterisk);
+            if (relativeAsterisk < 0) return false;
+            var nextAsterisk = searchStart + relativeAsterisk;
+            var backslashIdx = nextAsterisk - 1;
+            while (backslashIdx >= searchStart && content[backslashIdx] != Backslash)
+                backslashIdx--;
 
-        if (backslashIdx < 0 || content[backslashIdx] != Backslash) return false;
-
-        // Ensure closing syntax logically matches or relates to the opening tag style header
-        var closingTag = content[backslashIdx..nextAsterisk];
-        if (!closingTag.IsEmpty && styleHeader.Trim().StartsWith(closingTag))
-        {
-            start = backslashIdx;
-            end = nextAsterisk + 1;
-            if (end < content.Length && char.IsWhiteSpace(content[end]))
+            if (backslashIdx >= searchStart)
             {
-                end++;
+                var closingTag = content[backslashIdx..nextAsterisk];
+                var isMilestoneEnd = closingTag.SequenceEqual("\\*") &&
+                    (styleHeader.Trim().EndsWith("-s") || styleHeader.Trim().EndsWith("-e"));
+                if (!closingTag.IsEmpty && (styleHeader.Trim().StartsWith(closingTag) || isMilestoneEnd))
+                {
+                    start = backslashIdx;
+                    end = nextAsterisk + 1;
+                    if (isMilestoneEnd) return true;
+                    if (end < content.Length && char.IsWhiteSpace(content[end]))
+                        end++;
+                    return true;
+                }
             }
 
-            return true;
+            searchStart = nextAsterisk + 1;
         }
 
         return false;
