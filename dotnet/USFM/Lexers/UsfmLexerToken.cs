@@ -27,13 +27,13 @@ internal readonly ref struct UsfmLexerToken
         Count > 0 ? _token[Count] : ReadOnlySpan<char>.Empty;
 
     public readonly ReadOnlySpan<char> Content =>
-        HasClosingStar ? First : First.TrimEnd(' ');
+        HasClosingStar ? First : First.TrimEnd();
 
     public readonly ReadOnlySpan<char> Extra =>
-        HasClosingStar ? Last.TrimEnd(' ') : Last;
+        HasClosingStar ? Last.TrimEnd() : Last;
 
     public readonly bool HasClosingStar =>
-        Count > 0 && _token[Count].TrimEnd(' ').EndsWith('*');
+        Count > 0 && _token[Count].TrimEnd().EndsWith('*');
 
     public readonly IReadOnlyList<string> Segments => GetSegments();
 
@@ -51,11 +51,11 @@ internal readonly ref struct UsfmLexerToken
             }
             else if (!HasClosingStar && textIndex >= 0 && i == textIndex)
             {
-                value = _token[i];
+                value = _token[i].TrimEnd("\r\n".AsSpan());
             }
             else
             {
-                value = _token[i].TrimEnd(' ');
+                value = _token[i].TrimEnd();
             }
             result[i] = value.ToString();
         }
@@ -66,7 +66,7 @@ internal readonly ref struct UsfmLexerToken
         _token[index];
 
     public string Trimmed(int index) =>
-        _token[index].TrimEnd(' ').ToString();
+        _token[index].TrimEnd().ToString();
 
     public override string ToString() => _token.ToString();
 }

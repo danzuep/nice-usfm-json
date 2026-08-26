@@ -56,6 +56,7 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
     public virtual void Visit(TableNode node) => AddToResult(CreateTable(node, ProcessChildren(node.Content)));
     public virtual void Visit(RowNode node) => AddToResult(CreateRow(node, ProcessChildren(node.Content)));
     public virtual void Visit(CellNode node) => AddToResult(CreateCell(node, ProcessChildren(node.Content)));
+    public virtual void Visit(AnnotationNode node) => AddToResult(CreateAnnotation(node));
 
     // New uniform factory lifecycle methods
     protected abstract TNode CreateBook(BookNode node);
@@ -70,6 +71,7 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
     protected abstract TNode CreateTable(TableNode node, IList<TNode>? children);
     protected abstract TNode CreateRow(RowNode node, IList<TNode>? children);
     protected abstract TNode CreateCell(CellNode node, IList<TNode>? children);
+    protected abstract TNode CreateAnnotation(AnnotationNode node);
 
     public IReadOnlyList<TNode> GetResult() => ContainerStack.Peek().ToArray();
 

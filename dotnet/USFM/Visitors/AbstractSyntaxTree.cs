@@ -5,7 +5,7 @@ namespace USFM.Visitors;
 
 public interface IUsfmVisitor
 {
-    //void Visit(AnnotationNode node);
+    void Visit(AnnotationNode node);
     void Visit(BookNode node);
     void Visit(ChapterNode node);
     void Visit(VerseNode node);
@@ -35,7 +35,7 @@ public static class UsfmVisitorExtensions
             case NoteNode n: visitor.Visit(n); break;
             case LineBreakNode br: visitor.Visit(br); break;
             case MilestoneNode ms: visitor.Visit(ms); break;
-            //case AnnotationNode a: visitor.Visit(a); break;
+            case AnnotationNode a: visitor.Visit(a); break;
             case BookNode b: visitor.Visit(b); break;
             case TableNode t: visitor.Visit(t); break;
             case RowNode r: visitor.Visit(r); break;
@@ -71,10 +71,7 @@ public static class UsfmVisitorExtensions
     {
         ArgumentNullException.ThrowIfNull(visitor);
         ArgumentNullException.ThrowIfNull(reader);
-        string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
-        {
-            visitor.Accept(line);
-        }
+        var rawUsfm = await reader.ReadToEndAsync(cancellationToken);
+        visitor.Accept(rawUsfm);
     }
 }

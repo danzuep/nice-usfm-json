@@ -1,11 +1,13 @@
-﻿using USJ;
+﻿using System.Text.Json;
+using USJ;
 
 namespace USFM.Visitors;
 
 public class UsjConvertingVisitor : BaseStructuredVisitor<IUsjNode>
 {
     protected override IUsjNode CreateBook(BookNode node) =>
-        new UsjBook(node.Code, node.Description, null, node.Style);
+        new UsjBook(node.Code, null,
+            node.Description == null ? null : [new UsjText(node.Description)], node.Style);
 
     protected override IUsjNode CreateChapter(ChapterNode node, string startId) =>
         new UsjChapter(node.Number, startId, node.Style);
@@ -16,8 +18,13 @@ public class UsjConvertingVisitor : BaseStructuredVisitor<IUsjNode>
     protected override IUsjNode CreatePara(ParaNode node, IList<IUsjNode>? children) =>
         new UsjPara(null, children, node.Style);
 
-    protected override IUsjNode CreateChar(CharNode node, IList<IUsjNode>? children) =>
-        new UsjChar(children, node.Style);
+    protected override IUsjNode CreateChar(CharNode node, IList<IUsjNode>? children)
+    {
+        var result = new UsjChar(children, node.Style);
+        foreach (var attribute in node.Attributes)
+            result.ExtraProperties[attribute.Key] = JsonSerializer.SerializeToElement(attribute.Value);
+        return result;
+    }
 
     protected override IUsjNode CreateText(TextNode node) =>
         new UsjText(node.Text);
@@ -32,11 +39,14 @@ public class UsjConvertingVisitor : BaseStructuredVisitor<IUsjNode>
         new UsjLineBreak(node.Style);
 
     protected override IUsjNode CreateTable(TableNode node, IList<IUsjNode>? children) =>
-        new UsjTable(ProcessChildren(node.Content), node.Style);
+        new UsjTable(children, node.Style);
 
     protected override IUsjNode CreateRow(RowNode node, IList<IUsjNode>? children) =>
-        new UsjRow(ProcessChildren(node.Content), node.Style);
+        new UsjRow(children, node.Style);
 
     protected override IUsjNode CreateCell(CellNode node, IList<IUsjNode>? children) =>
-        new UsjCell(node.Align, ProcessChildren(node.Content), node.Style);
+        new UsjCell(node.Align, children, node.Style);
+
+    protected override IUsjNode CreateAnnotation(AnnotationNode node) =>
+        new UsjChar([new UsjText(node.Text)], node.Style);
 }

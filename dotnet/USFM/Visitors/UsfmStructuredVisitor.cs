@@ -15,7 +15,7 @@ public class UsfmStructuredVisitor : BaseStructuredVisitor<IUsfmNode>
         new ParaNode(node.Style, children);
 
     protected override IUsfmNode CreateChar(CharNode node, IList<IUsfmNode>? children) =>
-        new CharNode(node.Style, children);
+        new CharNode(node.Style, children, node.Attributes);
 
     protected override IUsfmNode CreateText(TextNode node) =>
         new TextNode(node.Text);
@@ -38,6 +38,6 @@ public class UsfmStructuredVisitor : BaseStructuredVisitor<IUsfmNode>
     protected override IUsfmNode CreateCell(CellNode node, IList<IUsfmNode>? children) =>
         new CellNode(node.Style, node.Align, children);
 
-    private IUsfmNode CreateAnnotation(AnnotationNode node) =>
+    protected override IUsfmNode CreateAnnotation(AnnotationNode node) =>
         new AnnotationNode(node.Style, node.Text, node.End);
 }

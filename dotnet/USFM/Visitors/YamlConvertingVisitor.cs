@@ -121,6 +121,7 @@ public class YamlConvertingVisitor : IUsfmVisitor
     public void Visit(CellNode node) { _sb.AppendLine($"type: \"cell:{node.Style}\""); WriteContent(node.Content); }
     public void Visit(MilestoneNode node) { _sb.AppendLine($"type: \"ms:{node.Style}\""); }
     public void Visit(LineBreakNode node) { _sb.AppendLine("type: \"break\""); }
+    public void Visit(AnnotationNode node) { }
 
     private string Escape(string text) => text.Replace("\"", "\\\"");
 

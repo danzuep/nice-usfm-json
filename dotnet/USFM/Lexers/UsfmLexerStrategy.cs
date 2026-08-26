@@ -60,6 +60,14 @@ public ref struct UsfmLexerStrategy
             styleEndIndex + 1 :
             styleEndIndex;
 
+        if (contentStart < originalRemaining.Length && originalRemaining[contentStart - 1] != ' ')
+        {
+            while (contentStart < originalRemaining.Length && char.IsWhiteSpace(originalRemaining[contentStart]))
+            {
+                contentStart++;
+            }
+        }
+
         var content = originalRemaining[contentStart..];
         var nextBackslash = content.IndexOf(Backslash);
 
@@ -102,7 +110,7 @@ public ref struct UsfmLexerStrategy
         if (nextAsterisk == -1) return false;
 
         int backslashIdx = nextAsterisk - 1;
-        while (backslashIdx > 0 && content[backslashIdx] != Backslash && !char.IsWhiteSpace(content[backslashIdx]))
+        while (backslashIdx >= 0 && content[backslashIdx] != Backslash)
         {
             backslashIdx--;
         }
@@ -115,11 +123,11 @@ public ref struct UsfmLexerStrategy
         {
             start = backslashIdx;
             end = nextAsterisk + 1;
-
             if (end < content.Length && char.IsWhiteSpace(content[end]))
             {
                 end++;
             }
+
             return true;
         }
 
@@ -143,6 +151,6 @@ public ref struct UsfmLexerStrategy
 
     internal static ReadOnlySpan<char> GetStyle(ReadOnlySpan<char> rawType)
     {
-        return rawType.TrimStart(Backslash).TrimEnd(Space).TrimEnd(Asterisk);
+        return rawType.TrimStart(Backslash).TrimEnd().TrimEnd(Asterisk).TrimEnd();
     }
 }

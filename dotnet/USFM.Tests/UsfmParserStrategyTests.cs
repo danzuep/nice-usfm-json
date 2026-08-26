@@ -27,12 +27,13 @@ namespace USFM.Tests
             var nodes = UsfmParserStrategy.Parse(input);
             await Assert.That(nodes.Count).IsEqualTo(3);
             var text1 = (TextNode)nodes[0];
-            var annotation = (AnnotationNode)nodes[1];
+            var annotation = (CharNode)nodes[1];
             var text2 = (TextNode)nodes[2];
             await Assert.That(text1.Text).IsEqualTo("Before");
             await Assert.That(annotation.Style).IsEqualTo("w");
-            await Assert.That(annotation.Text).IsEqualTo("gracious|lemma=\"grace\"");
-            await Assert.That(annotation.End).IsEqualTo(@"\w*");
+            await Assert.That(annotation.Content).IsNotNull();
+            await Assert.That(((TextNode)annotation.Content![0]).Text).IsEqualTo("gracious");
+            await Assert.That(annotation.Attributes["lemma"]).IsEqualTo("grace");
             await Assert.That(text2.Text).IsEqualTo("After");
         }
 
@@ -48,10 +49,11 @@ namespace USFM.Tests
             };
             var nodes = UsfmParserStrategy.Parse(string.Concat(expected));
 
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                await Assert.That(nodes[i].ToString()).IsEqualTo(expected[i].TrimEnd(' '));
-            }
+            await Assert.That(nodes.Count).IsEqualTo(4);
+            await Assert.That(nodes[0].ToString()).IsEqualTo(expected[0].TrimEnd());
+            await Assert.That(nodes[1].ToString()).IsEqualTo(expected[1].TrimEnd());
+            await Assert.That(nodes[2].ToString()).IsEqualTo(expected[2].TrimEnd());
+            await Assert.That(nodes[3].ToString()).IsEqualTo(expected[3].TrimEnd());
         }
 
         [Test]
@@ -65,10 +67,8 @@ namespace USFM.Tests
             };
             var nodes = UsfmParserStrategy.Parse(string.Concat(expected));
 
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                await Assert.That(nodes[i].ToString()).IsEqualTo(expected[i].TrimEnd(' '));
-            }
+            await Assert.That(nodes.Count).IsEqualTo(1);
+            await Assert.That(nodes[0].ToString()).IsEqualTo(string.Concat(expected));
         }
 
         [Test]

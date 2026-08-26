@@ -62,6 +62,7 @@ public class MarkdownConvertingVisitor : IUsfmVisitor
     public void Visit(TableNode node) => this.Accept(node.Content);
     public void Visit(RowNode node) => this.Accept(node.Content);
     public void Visit(CellNode node) => this.Accept(node.Content);
+    public void Visit(AnnotationNode node) => _builder.Append(node.Text);
 
     public string GetResult() => _builder.ToString();
 

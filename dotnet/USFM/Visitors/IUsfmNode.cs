@@ -78,9 +78,10 @@ public sealed class ParaNode : IUsfmNode
 public sealed class CharNode : IUsfmNode
 {
     public string Style { get; }
+    public IReadOnlyDictionary<string, string> Attributes { get; }
     public IList<IUsfmNode>? Content { get; }
-    public CharNode(string style, IList<IUsfmNode>? content = null)
-    { Style = style; Content = content; }
+    public CharNode(string style, IList<IUsfmNode>? content = null, IReadOnlyDictionary<string, string>? attributes = null)
+        { Style = style; Content = content; Attributes = attributes ?? new Dictionary<string, string>(); }
     public override string ToString()
     {
         var sb = new StringBuilder();
