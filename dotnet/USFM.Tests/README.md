@@ -1,6 +1,15 @@
-## Running tests
+# USFM.Tests
 
-- List tests
+## Run tests
+
+- Build and run all tests:
+
+```sh
+dotnet build ./dotnet/USFM.Tests/USFM.Tests.csproj
+dotnet run --project ./dotnet/USFM.Tests/USFM.Tests.csproj --no-build -- --disable-logo
+```
+
+- List tests:
 
 ```sh
 dotnet run --project dotnet/USFM.Tests/USFM.Tests.csproj -- --list-tests --diagnostic --diagnostic-verbosity Trace
