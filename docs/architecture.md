@@ -1,6 +1,6 @@
 # USFM Parsing Architecture
 
-This document defines the target .NET architecture for `nice-usfm-json`. It follows the staged design of [`dsc-faithtech/usfm3`](https://github.com/dsc-faithtech/usfm3):
+This document defines the target .NET architecture for `nice-usfm-json`. It follows the staged design of [`jcuenod/usfm3`](https://github.com/jcuenod/usfm3):
 
 ```text
 tokenize -> parse CST -> lower AST -> project output -> serialize
