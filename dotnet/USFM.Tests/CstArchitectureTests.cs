@@ -1,4 +1,5 @@
 using USFM.Parsers;
+using USFM.Ast;
 using USFM.Visitors;
 
 namespace USFM.Tests;
@@ -32,5 +33,39 @@ public class CstArchitectureTests
         await Assert.That(verse!.StartVerse).IsEqualTo("1");
         await Assert.That(verse.EndVerse).IsEqualTo("3");
         await Assert.That(character!.Attributes["lemma"]).IsEqualTo("x");
+    }
+
+    [Test]
+    public async Task CstResultReportsStableRecoveryDiagnostics()
+    {
+        var parsed = Usfm.ParseCstResult("\\w unfinished".AsMemory());
+
+        await Assert.That(parsed.Diagnostics).Count().IsEqualTo(1);
+        await Assert.That(parsed.Diagnostics[0].Code).IsEqualTo("USFM002");
+        await Assert.That(parsed.Diagnostics[0].Span.Start).IsEqualTo(0);
+        await Assert.That(parsed.Cst.Span.Length).IsEqualTo(parsed.Source.Length);
+    }
+
+    [Test]
+    public async Task CstPreservesDuplicateAttributeOrder()
+    {
+        const string source = "\\w word|x=\"one\" x=\"two\"\\w*";
+        var parser = new UsfmCstParser(source.AsMemory());
+        var root = parser.Parse();
+        var marker = await Assert.That(root.Children[0]).IsTypeOf<CstMarkerNode>();
+
+        await Assert.That(marker!.Attributes).Count().IsEqualTo(2);
+        await Assert.That(marker.Attributes[0].Value.ToString()).IsEqualTo("one");
+        await Assert.That(marker.Attributes[1].Value.ToString()).IsEqualTo("two");
+    }
+
+    [Test]
+    public async Task ParseAstBuildsSourceMapForCstNodes()
+    {
+        var parsed = Usfm.ParseAst("\\c 1\n\\p\n\\v 1 text".AsMemory());
+
+        await Assert.That(parsed.SourceMap.Spans.Count).IsGreaterThan(1);
+        await Assert.That(parsed.SourceMap.TryGetSpan(0, out var rootSpan)).IsTrue();
+        await Assert.That(rootSpan.Length).IsEqualTo(parsed.Source.Length);
     }
 }

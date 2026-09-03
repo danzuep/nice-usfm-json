@@ -163,7 +163,22 @@ The lexer and CST parser are the hot path:
 
 ## Validation
 
-Layer-specific tests in `dotnet/USFM.Tests` cover lexer and CST spans, lossless source slices, malformed-marker recovery, attributes, verse ranges, milestones, and AST-to-output fixtures.
+Layer-specific tests in `dotnet/USFM.Tests` should remain small and ownership-focused:
+
+| Module | High-value test cases |
+| --- | --- |
+| `UsfmLexer` | Text and marker boundaries; closing markers; pipes; standalone milestones; CRLF and LF; Unicode offsets; EOF; lookahead does not duplicate or lose a token. |
+| `UsfmCstParser` | Nested markers; implicit paragraph/verse scopes; mismatched and unterminated markers; unknown markers; malformed attributes; exact source-span reconstruction. |
+| `SourceMap` | Root and child mappings; stable node IDs; UTF-16 offsets around surrogate pairs; every mapped span stays within the source. |
+| Diagnostics | Stable code and severity; source span; document order; recovery continues after an error; no exception for malformed input. |
+| `CstToAstLowerer` | Verse ranges; quoted and shorthand attributes; duplicate/order-preserving CST attributes; milestone start/end scopes; notes; tables; unknown-marker policy; trivia normalization. |
+| AST visitors | Every AST node dispatches exactly once; nested content is visited in order; projection context resets between documents; unsupported nodes fail clearly. |
+| USJ projection | `type`, `sid`, `vid`, content, extension attributes, milestones, notes, tables, and source-generated JSON round trips. |
+| Markdown/YAML projection | Headings, inline markers, links, footnotes, tables, escaping, empty content, and repeated projections do not leak state. |
+| `UsfmReader`/facade | Stream ownership; cancellation; empty input; diagnostics are returned; CST-only calls do not lower AST; AST-only calls do not serialize JSON. |
+| Fixture parity | Every `samples/*/proposed.json` fixture; normalized AST comparison; malformed fixture recovery; allocation and throughput baselines for lexer/CST. |
+
+The current focused tests cover CST spans, recovery diagnostics, duplicate attributes, source maps, verse ranges, and attribute lowering. Add a test at the lowest layer that owns a new rule; do not test parser behavior indirectly through JSON when a CST or AST assertion is sufficient.
 
 Run the solution build with:
 
