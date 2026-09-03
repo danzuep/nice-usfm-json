@@ -1,9 +1,29 @@
 ﻿using System.Text;
-using USFM.Lexers;
+using USFM.Parsers;
 
 namespace USFM.Ast;
 
 public interface IUsfmNode { }
+
+public readonly record struct UsfmAttribute(string Key, string Value, SourceSpan Span);
+
+public sealed class UsfmAttributeCollection : IReadOnlyList<UsfmAttribute>
+{
+    private readonly UsfmAttribute[] _items;
+
+    public UsfmAttributeCollection(IEnumerable<UsfmAttribute>? attributes = null) =>
+        _items = attributes?.ToArray() ?? [];
+
+    public int Count => _items.Length;
+    public UsfmAttribute this[int index] => _items[index];
+    public string? this[string key] => GetValueOrDefault(key);
+
+    public string? GetValueOrDefault(string key) =>
+        _items.FirstOrDefault(attribute => string.Equals(attribute.Key, key, StringComparison.Ordinal)).Value;
+
+    public IEnumerator<UsfmAttribute> GetEnumerator() => ((IEnumerable<UsfmAttribute>)_items).GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _items.GetEnumerator();
+}
 
 public sealed class TextNode : IUsfmNode
 {
@@ -94,10 +114,10 @@ public sealed class ParaNode : IUsfmNode
 public sealed class CharNode : IUsfmNode
 {
     public string Style { get; }
-    public IReadOnlyDictionary<string, string> Attributes { get; }
+    public UsfmAttributeCollection Attributes { get; }
     public IList<IUsfmNode>? Content { get; }
-    public CharNode(string style, IList<IUsfmNode>? content = null, IReadOnlyDictionary<string, string>? attributes = null)
-        { Style = style; Content = content; Attributes = attributes ?? new Dictionary<string, string>(); }
+    public CharNode(string style, IList<IUsfmNode>? content = null, UsfmAttributeCollection? attributes = null)
+        { Style = style; Content = content; Attributes = attributes ?? new UsfmAttributeCollection(); }
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -216,9 +236,9 @@ public sealed class MilestoneNode : IUsfmNode
     public string? EndId => Attributes.GetValueOrDefault("eid");
     public string? Who => Attributes.GetValueOrDefault("who");
     public string? Level => Attributes.GetValueOrDefault("level");
-    public IReadOnlyDictionary<string, string> Attributes { get; }
+    public UsfmAttributeCollection Attributes { get; }
 
-    public MilestoneNode(string style, IReadOnlyDictionary<string, string> attributes)
+    public MilestoneNode(string style, UsfmAttributeCollection attributes)
     {
         Style = style;
         Attributes = attributes;

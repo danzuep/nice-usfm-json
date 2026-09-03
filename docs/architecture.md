@@ -180,6 +180,21 @@ Layer-specific tests in `dotnet/USFM.Tests` should remain small and ownership-fo
 
 The current focused tests cover CST spans, recovery diagnostics, duplicate attributes, source maps, verse ranges, and attribute lowering. Add a test at the lowest layer that owns a new rule; do not test parser behavior indirectly through JSON when a CST or AST assertion is sufficient.
 
+## Current Fixture Failure Categories
+
+The remaining fixture failures are intentionally tracked by owning layer:
+
+| Category | Fixtures | Owning module | Expected fix |
+| --- | --- | --- | --- |
+| Nested note and inline content | `cross-refs`, `footnote`, `nesting` | AST lowering | Preserve nested character nodes, callers, and text order instead of flattening marker payloads. |
+| Document and paragraph structure | `header`, `header2`, `list`, `section`, `multiple-chapters`, `multiple-paragraphs` | CST scope handling and AST lowering | Model implicit block boundaries and paragraph eligibility explicitly. |
+| Milestone ranges | `milestones` | AST lowering | Maintain an active start/end scope across intervening verse and text nodes. |
+| Table hierarchy | `table` | AST lowering and USJ projection | Keep rows inside a table and cells inside rows, including alignment. |
+| Attribute projection | `custom-attributes` | AST-to-USJ visitor | Preserve ordered attributes while projecting extension properties in the expected USJ shape. |
+| Chapter and verse metadata | `chapter-verse` | AST lowering | Normalize chapter annotations and verse payload boundaries without leaking CST line endings. |
+
+At the last validation pass there were 26 USFM tests: 13 passed and 13 failed. These are output-parity gaps in the new pipeline, not calls into a retired parser. Each category should gain a focused AST test before its fixture is changed.
+
 Run the solution build with:
 
 ```sh
