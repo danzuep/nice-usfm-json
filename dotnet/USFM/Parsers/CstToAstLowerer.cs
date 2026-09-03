@@ -62,7 +62,7 @@ public static class CstToAstLowerer
                 result.Add(new ChapterNode(style, FirstWord(text)));
                 break;
             case "v":
-                var verseText = NormalizeVerseText(RemainingAfterFirstWord(text), marker.Span, source.Length);
+                var verseText = NormalizeVerseText(RemainingAfterFirstWord(text), marker.Span, source);
                 result.Add(new VerseNode(style, FirstWord(text), string.IsNullOrEmpty(verseText) ? null : verseText));
                 if (!string.IsNullOrEmpty(verseText))
                     result.Add(new TextNode(verseText));
@@ -164,13 +164,14 @@ public static class CstToAstLowerer
     private static string CellAlignment(string style) =>
         style.StartsWith("tcr", StringComparison.Ordinal) ? "end" : "start";
 
-    private static string NormalizeVerseText(string value, SourceSpan markerSpan, int sourceLength)
+    private static string NormalizeVerseText(string value, SourceSpan markerSpan, ReadOnlyMemory<char> source)
     {
         if (!value.EndsWith('\n') && !value.EndsWith('\r'))
             return value;
 
         var normalized = value.TrimEnd("\r\n".AsSpan()).ToString();
-        return markerSpan.End < sourceLength ? normalized + " " : normalized;
+        var next = source.Span[markerSpan.End..];
+        return next.StartsWith("\\v".AsSpan()) ? normalized + " " : normalized;
     }
 
     private static string FirstWord(string value)

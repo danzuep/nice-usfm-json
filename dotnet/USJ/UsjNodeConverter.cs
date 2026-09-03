@@ -146,6 +146,24 @@ public class UsjNodeConverter : JsonConverter<IUsjNode>
             return;
         }
 
+        if (value is UsjChar character)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("type", character.Type);
+            foreach (var property in character.ExtraProperties)
+            {
+                writer.WritePropertyName(property.Key);
+                property.Value.WriteTo(writer);
+            }
+            if (character.Content is not null)
+            {
+                writer.WritePropertyName("content");
+                JsonSerializer.Serialize(writer, character.Content, options);
+            }
+            writer.WriteEndObject();
+            return;
+        }
+
         JsonSerializer.Serialize(writer, value, value.GetType(), options);
     }
 }

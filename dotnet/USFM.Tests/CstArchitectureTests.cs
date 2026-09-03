@@ -93,4 +93,23 @@ public class CstArchitectureTests
         await Assert.That(milestones[0].StartId).IsEqualTo("q1");
         await Assert.That(milestones[1].EndId).IsEqualTo("q1");
     }
+
+    [Test]
+    public async Task ChapterVerseLoweringPreservesAlternateVerseMarkers()
+    {
+        const string source = "\\id MAT 41MATGNT92.SFM, Good News Translation, June 2003\n\\c 1\n\\p\n\\v 1 \\va 3\\va* \\vp 1b\\vp* This is the verse.";
+        var nodes = CstToAstLowerer.Parse(source.AsMemory(), out var diagnostics);
+        var chapter = nodes.OfType<ChapterNode>().First();
+        var paragraph = nodes.OfType<ParaNode>().First(node => node.Content?.OfType<VerseNode>().Any() == true);
+        var verse = paragraph.Content!.OfType<VerseNode>().First();
+        var alternateMarkers = paragraph.Content!.OfType<CharNode>().ToArray();
+
+        foreach (var diagnostic in diagnostics)
+            TestContext.Current?.OutputWriter.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+        await Assert.That(diagnostics).Count().IsEqualTo(0);
+        await Assert.That(chapter.Number).IsEqualTo("1");
+        await Assert.That(verse.Number).IsEqualTo("1");
+        await Assert.That(alternateMarkers.Select(node => node.Style)).Contains("va");
+        await Assert.That(alternateMarkers.Select(node => node.Style)).Contains("vp");
+    }
 }
