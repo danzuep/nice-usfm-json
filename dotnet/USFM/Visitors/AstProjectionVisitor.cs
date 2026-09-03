@@ -1,21 +1,17 @@
-﻿using USFM.Parsers;
+using USFM.Parsers;
 
 namespace USFM.Visitors;
 
-public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
+public abstract class AstProjectionVisitor<TNode> : IUsfmAstVisitor
 {
     protected readonly Stack<List<TNode>> ContainerStack = new();
     protected readonly ParsingContext Context = new();
 
-    protected BaseStructuredVisitor()
-    {
-        ContainerStack.Push(new List<TNode>());
-    }
+    protected AstProjectionVisitor() => ContainerStack.Push(new List<TNode>());
 
     protected IList<TNode>? ProcessChildren(IEnumerable<IUsfmNode>? children)
     {
         if (children == null || !children.Any()) return null;
-
         var localList = new List<TNode>();
         ContainerStack.Push(localList);
         this.Accept(children);
@@ -55,11 +51,10 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
         var vid = containsVerse || !canHaveVid || string.IsNullOrEmpty(Context.Verse) ? null : Context.ToString();
         AddToResult(CreatePara(node, vid, children));
     }
+
     public virtual void Visit(CharNode node) => AddToResult(CreateChar(node, ProcessChildren(node.Content)));
     public virtual void Visit(TextNode node) => AddToResult(CreateText(node));
     public virtual void Visit(NoteNode node) => AddToResult(CreateNote(node, ProcessChildren(node.Content)));
-
-    // MOVED FROM LOWER-LEVEL BOILERPLATE TO CORE STRUCTURAL PIPELINE
     public virtual void Visit(MilestoneNode node) => AddToResult(CreateMilestone(node));
     public virtual void Visit(LineBreakNode node) => AddToResult(CreateLineBreak(node));
     public virtual void Visit(TableNode node) => AddToResult(CreateTable(node, ProcessChildren(node.Content)));
@@ -67,7 +62,6 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
     public virtual void Visit(CellNode node) => AddToResult(CreateCell(node, ProcessChildren(node.Content)));
     public virtual void Visit(AnnotationNode node) => AddToResult(CreateAnnotation(node));
 
-    // New uniform factory lifecycle methods
     protected abstract TNode CreateBook(BookNode node);
     protected abstract TNode CreateChapter(ChapterNode node, string sid);
     protected abstract TNode CreateVerse(VerseNode node, string vid);
@@ -82,11 +76,9 @@ public abstract class BaseStructuredVisitor<TNode> : IUsfmVisitor
     protected abstract TNode CreateCell(CellNode node, IList<TNode>? children);
     protected abstract TNode CreateAnnotation(AnnotationNode node);
 
-    public IReadOnlyList<TNode> GetResult() => ContainerStack.Peek().ToArray();
-
     public IReadOnlyList<TNode> FinalizeResult()
     {
-        var result = GetResult();
+        var result = ContainerStack.Peek().ToArray();
         ContainerStack.Clear();
         Context.Reset();
         return result;
