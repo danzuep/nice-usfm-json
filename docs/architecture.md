@@ -198,7 +198,7 @@ At the last validation pass there were 26 USFM tests: 13 passed and 13 failed. T
 Run the solution build with:
 
 ```sh
-dotnet build ./dotnet/USJ.sln
+dotnet build ./dotnet/USJ.slnx
 ```
 
 The remaining golden-output differences are output-semantics work in AST lowering and projection rules, not a second parser implementation. New behavior should be added to CST or AST contract tests before changing a projection visitor.

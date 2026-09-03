@@ -95,6 +95,19 @@ public class CstArchitectureTests
     }
 
     [Test]
+    public async Task FixtureMilestonesSurviveVerseScope()
+    {
+        const string source = "\\v 3\n\\qt-s |sid=\"qt_123\" who=\"Pilate\" \\*Quote\\qt-e |eid=\"qt_123\" \\*";
+        var nodes = CstToAstLowerer.Parse(source.AsMemory(), out var diagnostics);
+        var milestones = nodes.OfType<MilestoneNode>().ToArray();
+
+        await Assert.That(diagnostics).Count().IsEqualTo(0);
+        await Assert.That(milestones).Count().IsEqualTo(2);
+        await Assert.That(milestones[0].Who).IsEqualTo("Pilate");
+        await Assert.That(milestones[1].EndId).IsEqualTo("qt_123");
+    }
+
+    [Test]
     public async Task ChapterVerseLoweringPreservesAlternateVerseMarkers()
     {
         const string source = "\\id MAT 41MATGNT92.SFM, Good News Translation, June 2003\n\\c 1\n\\p\n\\v 1 \\va 3\\va* \\vp 1b\\vp* This is the verse.";
