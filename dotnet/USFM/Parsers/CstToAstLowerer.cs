@@ -44,11 +44,13 @@ public static class CstToAstLowerer
         var style = marker.MarkerName.ToString();
         var children = LowerChildren(marker.Children, source);
         var text = FlattenText(marker.Children);
-        var attributes = Attributes(marker.Attributes);
-        if (style == "w" && attributes.Remove("default", out var shorthand))
-            attributes["lemma"] = shorthand;
+        var attributes = Attributes(marker.Attributes).ToList();
+        var shorthandIndex = attributes.FindIndex(attribute => attribute.Key == "default");
+        if (style == "w" && shorthandIndex >= 0)
+            attributes[shorthandIndex] = attributes[shorthandIndex] with { Key = "lemma" };
         if (style == "ca" && attributes.Count == 0)
-            attributes["status"] = "invalid";
+            attributes.Add(new UsfmAttribute("status", "invalid", SourceSpan.Empty));
+        var attributeCollection = new UsfmAttributeCollection(attributes);
 
         switch (style)
         {
@@ -74,7 +76,7 @@ public static class CstToAstLowerer
             case "ior":
             case "va":
             case "vp":
-                result.Add(new CharNode(style, children, attributes));
+                result.Add(new CharNode(style, children, attributeCollection));
                 break;
             case "f":
             case "x":
@@ -137,8 +139,8 @@ public static class CstToAstLowerer
         return result;
     }
 
-    private static Dictionary<string, string> Attributes(IEnumerable<CstAttributeNode> nodes) =>
-        nodes.ToDictionary(static node => node.Key.ToString(), static node => node.Value.ToString(), StringComparer.Ordinal);
+    private static UsfmAttributeCollection Attributes(IEnumerable<CstAttributeNode> nodes) =>
+        new(nodes.Select(static node => new UsfmAttribute(node.Key.ToString(), node.Value.ToString(), node.Span)));
 
     private static string FlattenText(IEnumerable<CstNode> nodes) =>
         string.Concat(nodes.Select(static node => node switch

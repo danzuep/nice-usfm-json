@@ -68,4 +68,29 @@ public class CstArchitectureTests
         await Assert.That(parsed.SourceMap.TryGetSpan(0, out var rootSpan)).IsTrue();
         await Assert.That(rootSpan.Length).IsEqualTo(parsed.Source.Length);
     }
+
+    [Test]
+    public async Task LowererRetainsDuplicateSemanticAttributes()
+    {
+        var nodes = CstToAstLowerer.Parse("\\w word|x=\"one\" x=\"two\"\\w*".AsMemory(), out _);
+        var character = await Assert.That(nodes.OfType<CharNode>().Single()).IsTypeOf<CharNode>();
+
+        await Assert.That(character!.Attributes).Count().IsEqualTo(2);
+        await Assert.That(character.Attributes[0].Key).IsEqualTo("x");
+        await Assert.That(character.Attributes[1].Value).IsEqualTo("two");
+        await Assert.That(character.Attributes[0].Span.Length).IsGreaterThan(0);
+    }
+
+    [Test]
+    public async Task LowererKeepsMilestoneStartAndEndNodes()
+    {
+        const string source = "\\qt-s |sid=\"q1\" \\*quoted\\qt-e |eid=\"q1\" \\*";
+        var nodes = CstToAstLowerer.Parse(source.AsMemory(), out var diagnostics);
+        var milestones = nodes.OfType<MilestoneNode>().ToArray();
+
+        await Assert.That(diagnostics).Count().IsEqualTo(0);
+        await Assert.That(milestones).Count().IsEqualTo(2);
+        await Assert.That(milestones[0].StartId).IsEqualTo("q1");
+        await Assert.That(milestones[1].EndId).IsEqualTo("q1");
+    }
 }
