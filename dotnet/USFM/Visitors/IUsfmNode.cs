@@ -42,9 +42,25 @@ public sealed class VerseNode : IUsfmNode
 {
     public string Style { get; } = "v";
     public string Number { get; }
+    public string StartVerse { get; }
+    public string? EndVerse { get; }
     public string? Text { get; }
     public VerseNode(string style, string number, string? text = null)
-    { Style = style; Number = number; Text = text; }
+    {
+        Style = style;
+        Number = number;
+        Text = text;
+
+        var rangeSeparator = number.AsSpan().IndexOf('-');
+        if (rangeSeparator < 0)
+        {
+            StartVerse = number;
+            return;
+        }
+
+        StartVerse = number[..rangeSeparator];
+        EndVerse = number[(rangeSeparator + 1)..];
+    }
     public override string ToString()
     {
         if (string.IsNullOrEmpty(Text))
