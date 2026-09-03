@@ -28,7 +28,7 @@ public ref struct UsfmCstParser
             switch (token.Type)
             {
                 case UsfmTokenType.Marker:
-                    while (markerStack.Count > 0 && !RequiresClosingMarker(markerStack.Peek().Builder.Name.Span))
+                    while (markerStack.Count > 0 && ShouldCloseImplicitScope(markerStack.Peek().Builder.Name.Span, token.Value))
                     {
                         var (implicitBuilder, implicitChildren) = markerStack.Pop();
                         AddNode(implicitBuilder.Build(implicitChildren.ToImmutableArray(), new SourceSpan(token.Offset, 0)), markerStack, rootChildren);
@@ -185,6 +185,39 @@ public ref struct UsfmCstParser
         marker.SequenceEqual("w") || marker.SequenceEqual("f") || marker.SequenceEqual("x") ||
         marker.SequenceEqual("add") || marker.SequenceEqual("nd") || marker.SequenceEqual("ord") ||
         marker.SequenceEqual("pn") || marker.SequenceEqual("qt") || marker.SequenceEqual("it");
+
+    private static bool ShouldCloseImplicitScope(ReadOnlySpan<char> current, ReadOnlySpan<char> next)
+    {
+        if (RequiresClosingMarker(current))
+            return false;
+
+        if (current.SequenceEqual("v"))
+            return true;
+
+        if (current.SequenceEqual("p") || current.StartsWith('p'))
+            return IsBlockMarker(next) && !next.SequenceEqual("v");
+
+        if (current.SequenceEqual("tr"))
+            return next.SequenceEqual("tr") || (IsBlockMarker(next) && !IsCellMarker(next));
+
+        if (IsCellMarker(current))
+            return IsBlockMarker(next) && !IsCellMarker(next);
+
+        return IsBlockMarker(next);
+    }
+
+    private static bool IsCellMarker(ReadOnlySpan<char> marker) =>
+        marker.StartsWith("tc") || marker.StartsWith("th");
+
+    private static bool IsBlockMarker(ReadOnlySpan<char> marker) =>
+        marker.SequenceEqual("id") || marker.SequenceEqual("c") || marker.SequenceEqual("p") ||
+        marker.StartsWith('p') || marker.StartsWith('s') || marker.SequenceEqual("r") ||
+        marker.SequenceEqual("m") || marker.StartsWith('h') || marker.StartsWith('i') ||
+        marker.StartsWith('l') || marker.StartsWith('t') || marker.StartsWith('q') ||
+        marker.StartsWith("mt") || marker.StartsWith("is") || marker.StartsWith("ip") ||
+        marker.StartsWith("li") || marker.StartsWith("tr") || marker.StartsWith("th") ||
+        marker.StartsWith("tc") || marker.SequenceEqual("cl") || marker.SequenceEqual("cp") ||
+        marker.SequenceEqual("cd");
 
     private ReadOnlyMemory<char> SourceMemory(UsfmToken token, int relativeStart = 0, int? length = null) =>
         _source.Slice(token.Offset + relativeStart, length ?? token.Span.Length - relativeStart);

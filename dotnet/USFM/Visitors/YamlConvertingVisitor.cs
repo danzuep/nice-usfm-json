@@ -3,7 +3,7 @@ using USFM.Parsers;
 
 namespace USFM.Visitors;
 
-public class YamlConvertingVisitor : IUsfmVisitor
+public class YamlConvertingVisitor : IUsfmAstVisitor
 {
     private const int BaseIndent = 2;
     private int _indent = 0;

@@ -26,7 +26,9 @@ public static class CstToAstLowerer
         switch (node)
         {
             case CstTextNode text:
-                result.Add(new TextNode(text.Text.ToString()));
+                var normalized = NormalizeText(text.Text.Span);
+                if (normalized != null)
+                    result.Add(new TextNode(normalized));
                 break;
             case CstMilestoneNode milestone:
                 result.Add(new MilestoneNode(milestone.MarkerName.ToString(), Attributes(milestone.Attributes)));
@@ -41,21 +43,37 @@ public static class CstToAstLowerer
     {
         var style = marker.MarkerName.ToString();
         var children = LowerChildren(marker.Children, source);
-        var text = string.Concat(children.OfType<TextNode>().Select(static child => child.Text));
+        var text = FlattenText(marker.Children);
         var attributes = Attributes(marker.Attributes);
+        if (style == "w" && attributes.Remove("default", out var shorthand))
+            attributes["lemma"] = shorthand;
+        if (style == "ca" && attributes.Count == 0)
+            attributes["status"] = "invalid";
 
         switch (style)
         {
             case "id":
-                result.Add(new BookNode(style, FirstWord(text), RemainingAfterFirstWord(text)));
+                var description = NormalizeMarkerText(RemainingAfterFirstWord(text));
+                result.Add(new BookNode(style, FirstWord(text), string.IsNullOrEmpty(description) ? null : description));
                 break;
             case "c":
                 result.Add(new ChapterNode(style, FirstWord(text)));
                 break;
             case "v":
-                result.Add(new VerseNode(style, FirstWord(text), RemainingAfterFirstWord(text)));
+                var verseText = NormalizeVerseText(RemainingAfterFirstWord(text), marker.Span, source.Length);
+                result.Add(new VerseNode(style, FirstWord(text), string.IsNullOrEmpty(verseText) ? null : verseText));
+                if (!string.IsNullOrEmpty(verseText))
+                    result.Add(new TextNode(verseText));
                 break;
             case "w":
+            case "add":
+            case "ca":
+            case "nd":
+            case "ord":
+            case "pn":
+            case "ior":
+            case "va":
+            case "vp":
                 result.Add(new CharNode(style, children, attributes));
                 break;
             case "f":
@@ -65,11 +83,34 @@ public static class CstToAstLowerer
             case var _ when style.StartsWith('p'):
                 result.Add(new ParaNode(style, children));
                 break;
+            case "cl":
+            case "cp":
+            case "cd":
+            case "toc1":
+            case "toc2":
+            case "toc3":
+            case "toca1":
+            case "toca2":
+            case "toca3":
+            case "usfm":
+            case var _ when style.StartsWith('s'):
+            case "r":
+            case "m":
+            case var _ when style.StartsWith('h'):
+            case var _ when style.StartsWith('i'):
+            case var _ when style.StartsWith('l'):
+            case var _ when style.StartsWith('q'):
+            case var _ when style.StartsWith("mt"):
+            case var _ when style.StartsWith("is"):
+            case var _ when style.StartsWith("ip"):
+            case var _ when style.StartsWith("li"):
+                result.Add(new ParaNode(style, children));
+                break;
             case var _ when style.StartsWith("tr"):
                 result.Add(new RowNode(style, children));
                 break;
             case var _ when style.StartsWith("tc") || style.StartsWith("th"):
-                result.Add(new CellNode(style, string.Empty, children));
+                result.Add(new CellNode(style, CellAlignment(style), children));
                 break;
             case var _ when style.StartsWith('t'):
                 result.Add(new TableNode(style, children));
@@ -88,11 +129,47 @@ public static class CstToAstLowerer
         var result = new List<IUsfmNode>();
         foreach (var node in nodes)
             LowerNode(node, source, result);
+
+        var rows = result.OfType<RowNode>().ToList();
+        if (rows.Count > 0 && rows.Count == result.Count(row => row is RowNode))
+            return [new TableNode("table", rows.Cast<IUsfmNode>().ToList())];
+
         return result;
     }
 
     private static Dictionary<string, string> Attributes(IEnumerable<CstAttributeNode> nodes) =>
         nodes.ToDictionary(static node => node.Key.ToString(), static node => node.Value.ToString(), StringComparer.Ordinal);
+
+    private static string FlattenText(IEnumerable<CstNode> nodes) =>
+        string.Concat(nodes.Select(static node => node switch
+        {
+            CstTextNode text => text.Text.ToString(),
+            CstMarkerNode marker => FlattenText(marker.Children),
+            _ => string.Empty
+        }));
+
+    private static string? NormalizeText(ReadOnlySpan<char> value)
+    {
+        if (value.IsEmpty || value.IsWhiteSpace())
+            return null;
+
+        return value.TrimEnd("\r\n".AsSpan()).ToString();
+    }
+
+    private static string NormalizeMarkerText(string value) =>
+        value.TrimEnd("\r\n".AsSpan()).ToString();
+
+    private static string CellAlignment(string style) =>
+        style.StartsWith("tcr", StringComparison.Ordinal) ? "end" : "start";
+
+    private static string NormalizeVerseText(string value, SourceSpan markerSpan, int sourceLength)
+    {
+        if (!value.EndsWith('\n') && !value.EndsWith('\r'))
+            return value;
+
+        var normalized = value.TrimEnd("\r\n".AsSpan()).ToString();
+        return markerSpan.End < sourceLength ? normalized + " " : normalized;
+    }
 
     private static string FirstWord(string value)
     {

@@ -2,7 +2,7 @@ using System.Text;
 
 namespace USFM.Visitors;
 
-public class MarkdownConvertingVisitor : IUsfmVisitor
+public class MarkdownConvertingVisitor : IUsfmAstVisitor
 {
     private readonly List<NoteNode> _footnotes = new();
     private readonly StringBuilder _builder = new();

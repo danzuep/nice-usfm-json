@@ -3,7 +3,7 @@ using USJ;
 
 namespace USFM.Visitors;
 
-public class UsjConvertingVisitor : BaseStructuredVisitor<IUsjNode>
+public class UsjConvertingVisitor : AstProjectionVisitor<IUsjNode>
 {
     protected override IUsjNode CreateBook(BookNode node) =>
         new UsjBook(node.Code, null,

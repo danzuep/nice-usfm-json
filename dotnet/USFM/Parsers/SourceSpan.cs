@@ -20,5 +20,7 @@ public enum DiagnosticLevel
 public readonly record struct ParsingDiagnostic(
     string Message,
     SourceSpan Span,
-    DiagnosticLevel Level = DiagnosticLevel.Error
-);
+    DiagnosticLevel Level = DiagnosticLevel.Error)
+{
+    public string Code { get; init; } = "USFM000";
+}

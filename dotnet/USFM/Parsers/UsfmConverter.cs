@@ -9,47 +9,49 @@ public class UsfmConverter
     public async Task<string> ConvertUsfmToMarkdownAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
         var visitor = new MarkdownConvertingVisitor();
-        await visitor.ParseAsync(usfmStream, cancellationToken);
+        var parsed = await ParseAsync(usfmStream, cancellationToken);
+        visitor.Accept(parsed.Ast);
         return visitor.FinalizeResult();
     }
 
     public async Task<string> ConvertUsfmToYamlAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
         var visitor = new YamlConvertingVisitor();
-        await visitor.ParseAsync(usfmStream, cancellationToken);
+        var parsed = await ParseAsync(usfmStream, cancellationToken);
+        visitor.Accept(parsed.Ast);
         return visitor.GetResult();
     }
 
     public static async Task<IList<IUsfmNode>> ConvertUsfmAsync(StreamReader usfmReader, CancellationToken cancellationToken = default)
     {
-        var visitor = new UsfmStructuredVisitor();
-        await visitor.ParseAsync(usfmReader, cancellationToken);
-        var content = new List<IUsfmNode>();
-        content.AddRange(visitor.FinalizeResult());
-        return content;
+        var source = await usfmReader.ReadToEndAsync(cancellationToken);
+        return CstToAstLowerer.Parse(source.AsMemory(), out _).ToList();
     }
 
     public async Task<IList<IUsfmNode>> ConvertUsfmAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
-        var visitor = new UsfmStructuredVisitor();
-        await visitor.ParseAsync(usfmStream, cancellationToken);
-        var content = new List<IUsfmNode>();
-        content.AddRange(visitor.FinalizeResult());
-        return content;
+        return (await ParseAsync(usfmStream, cancellationToken)).Ast.ToList();
     }
 
     public async Task<UsjDocument> ConvertUsfmToUsjAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
+        var parsed = await ParseAsync(usfmStream, cancellationToken);
         var visitor = new UsjConvertingVisitor();
-        await visitor.ParseAsync(usfmStream, cancellationToken);
-        var content = new List<IUsjNode>();
-        content.AddRange(visitor.FinalizeResult());
-        return new UsjDocument { Content = [.. content] };
+        visitor.Accept(parsed.Ast);
+        return new UsjDocument { Content = [.. visitor.FinalizeResult()] };
     }
 
     public async Task<string> ConvertUsfmToUsjJsonAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
         var document = await ConvertUsfmToUsjAsync(usfmStream, cancellationToken);
         return JsonSerializer.Serialize(document, UsjJsonContext.Default.UsjDocument);
+    }
+
+    private static async Task<UsfmParseResult> ParseAsync(Stream source, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        using var reader = new StreamReader(source, leaveOpen: true);
+        var text = await reader.ReadToEndAsync(cancellationToken);
+        return Usfm.ParseAst(text.AsMemory());
     }
 }

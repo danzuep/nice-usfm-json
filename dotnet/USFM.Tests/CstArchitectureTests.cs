@@ -26,7 +26,7 @@ public class CstArchitectureTests
         const string source = "\\v 1-3 text \\w word|lemma=\"x\"\\w*";
         var nodes = CstToAstLowerer.Parse(source.AsMemory(), out var diagnostics);
         var verse = await Assert.That(nodes[0]).IsTypeOf<VerseNode>();
-        var character = await Assert.That(nodes[1]).IsTypeOf<CharNode>();
+        var character = await Assert.That(nodes.OfType<CharNode>().Single()).IsTypeOf<CharNode>();
 
         await Assert.That(diagnostics).Count().IsEqualTo(0);
         await Assert.That(verse!.StartVerse).IsEqualTo("1");
