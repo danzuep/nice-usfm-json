@@ -25,13 +25,13 @@ flowchart LR
     USJ --> JSON[System.Text.Json\nsource-generated metadata]
 ```
 
-The public facade is [Usfm.cs](../dotnet/USFM/Parsers/Usfm.cs) and [UsfmConverter.cs](../dotnet/USFM/Parsers/UsfmConverter.cs): `ParseCst`, `ParseAst`, `ParseUsj`, and stream conversion APIs. A [UsfmParseResult](../dotnet/USFM/Parsers/UsfmParseResult.cs) owns the source, CST, AST, diagnostics, and source map for callers that need the complete result.
+The public facade is [Usfm.cs](USFM/Parsers/Usfm.cs) and [UsfmConverter.cs](USFM/Parsers/UsfmConverter.cs): `ParseCst`, `ParseAst`, `ParseUsj`, and stream conversion APIs. A [UsfmParseResult](USFM/Parsers/UsfmParseResult.cs) owns the source, CST, AST, diagnostics, and source map for callers that need the complete result.
 
 ## Layer Ownership
 
 ### Lexer
 
-[UsfmLexer](../dotnet/USFM/Lexers/UsfmLexer.cs) is a stack-only cursor over `ReadOnlySpan<char>`.
+[UsfmLexer](USFM/Lexers/UsfmLexer.cs) is a stack-only cursor over `ReadOnlySpan<char>`.
 
 - Emits typed tokens with UTF-16 source offsets.
 - Uses `SearchValues<char>` for delimiter searches.
@@ -41,19 +41,19 @@ The public facade is [Usfm.cs](../dotnet/USFM/Parsers/Usfm.cs) and [UsfmConverte
 
 ### CST
 
-[UsfmCstParser](../dotnet/USFM/Parsers/UsfmCstParser.cs) owns concrete structure and recovery.
+[UsfmCstParser](USFM/Parsers/UsfmCstParser.cs) owns concrete structure and recovery.
 
 - Retains source-backed `ReadOnlyMemory<char>` slices.
 - Preserves marker names, delimiters, whitespace, pipes, quoted values, and unknown syntax.
 - Records mismatched-marker diagnostics without throwing.
 - Tracks implicit scopes for paragraphs, verses, tables, cells, and inline markers.
-- Produces [CstNode](../dotnet/USFM/Parsers/CstNode.cs) records that can be reconstructed from [SourceSpan](../dotnet/USFM/Parsers/SourceSpan.cs).
+- Produces [CstNode](USFM/Parsers/CstNode.cs) records that can be reconstructed from [SourceSpan](USFM/Parsers/SourceSpan.cs).
 
 The CST may allocate its owned node collections. Only transient lexer/parser state is required to be stack-only.
 
 ### AST
 
-[CstToAstLowerer](../dotnet/USFM/Parsers/CstToAstLowerer.cs) converts concrete syntax into semantic USFM nodes.
+[CstToAstLowerer](USFM/Parsers/CstToAstLowerer.cs) converts concrete syntax into semantic USFM nodes.
 
 - Normalizes verse ranges into `StartVerse` and `EndVerse`.
 - Converts quoted and shorthand attributes into semantic attributes.
@@ -141,7 +141,7 @@ Rules:
 
 ## Observability
 
-[Usfm](../dotnet/USFM/Parsers/Usfm.cs) exposes an `ActivitySource` named `USFM`. Public stages use these activity names:
+[Usfm](USFM/Parsers/Usfm.cs) exposes an `ActivitySource` named `USFM`. Public stages use these activity names:
 
 ```text
 usfm.parse-cst
@@ -179,26 +179,3 @@ Layer-specific tests in `dotnet/USFM.Tests` should remain small and ownership-fo
 | Fixture parity | Every `samples/*/proposed.json` fixture; normalized AST comparison; malformed fixture recovery; allocation and throughput baselines for lexer/CST. |
 
 The current focused tests cover CST spans, recovery diagnostics, duplicate attributes, source maps, verse ranges, and attribute lowering. Add a test at the lowest layer that owns a new rule; do not test parser behavior indirectly through JSON when a CST or AST assertion is sufficient.
-
-## Current Fixture Failure Categories
-
-The remaining fixture failures are intentionally tracked by owning layer:
-
-| Category | Fixtures | Owning module | Expected fix |
-| --- | --- | --- | --- |
-| Nested note and inline content | `cross-refs`, `footnote`, `nesting` | AST lowering | Preserve nested character nodes, callers, and text order instead of flattening marker payloads. |
-| Document and paragraph structure | `header`, `header2`, `list`, `section`, `multiple-chapters`, `multiple-paragraphs` | CST scope handling and AST lowering | Model implicit block boundaries and paragraph eligibility explicitly. |
-| Milestone ranges | `milestones` | AST lowering | Maintain an active start/end scope across intervening verse and text nodes. |
-| Table hierarchy | `table` | AST lowering and USJ projection | Keep rows inside a table and cells inside rows, including alignment. |
-| Attribute projection | `custom-attributes` | AST-to-USJ visitor | Preserve ordered attributes while projecting extension properties in the expected USJ shape. |
-| Chapter and verse metadata | `chapter-verse` | AST lowering | Normalize chapter annotations and verse payload boundaries without leaking CST line endings. |
-
-At the last validation pass there were 26 USFM tests: 13 passed and 13 failed. These are output-parity gaps in the new pipeline, not calls into a retired parser. Each category should gain a focused AST test before its fixture is changed.
-
-Run the solution build with:
-
-```sh
-dotnet build ./dotnet/USJ.slnx
-```
-
-The remaining golden-output differences are output-semantics work in AST lowering and projection rules, not a second parser implementation. New behavior should be added to CST or AST contract tests before changing a projection visitor.
