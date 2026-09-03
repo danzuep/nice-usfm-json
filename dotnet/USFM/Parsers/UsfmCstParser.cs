@@ -9,6 +9,8 @@ public ref struct UsfmCstParser
     private readonly ReadOnlyMemory<char> _source;
     private readonly List<ParsingDiagnostic> _diagnostics;
 
+    public IReadOnlyList<ParsingDiagnostic> Diagnostics => _diagnostics;
+
     public UsfmCstParser(ReadOnlyMemory<char> source)
     {
         _source = source;
@@ -26,7 +28,7 @@ public ref struct UsfmCstParser
             switch (token.Type)
             {
                 case UsfmTokenType.Marker:
-                    var markerBuilder = new CstMarkerNodeBuilder(token);
+                    var markerBuilder = new CstMarkerNodeBuilder(token, _source);
                     markerStack.Push((markerBuilder, new List<CstNode>()));
                     break;
 
@@ -39,13 +41,13 @@ public ref struct UsfmCstParser
                     }
                     else
                     {
-                        AddNode(new CstTextNode(GetSourceSpan(token), token.Span.ToArray().AsMemory()), markerStack, rootChildren);
+                        AddNode(new CstTextNode(GetSourceSpan(token), SourceMemory(token)), markerStack, rootChildren);
                         _diagnostics.Add(new ParsingDiagnostic($"Unexpected closing marker: \\{token.Value.ToString()}*", GetSourceSpan(token)));
                     }
                     break;
 
                 case UsfmTokenType.Text:
-                    AddNode(new CstTextNode(GetSourceSpan(token), token.Span.ToArray().AsMemory()), markerStack, rootChildren);
+                    AddNode(new CstTextNode(GetSourceSpan(token), SourceMemory(token)), markerStack, rootChildren);
                     break;
 
                 case UsfmTokenType.AttributePipe:
@@ -55,13 +57,13 @@ public ref struct UsfmCstParser
                     }
                     else
                     {
-                        AddNode(new CstTextNode(GetSourceSpan(token), token.Span.ToArray().AsMemory()), markerStack, rootChildren);
+                        AddNode(new CstTextNode(GetSourceSpan(token), SourceMemory(token)), markerStack, rootChildren);
                     }
                     break;
                 
                 case UsfmTokenType.MilestoneStart:
                 case UsfmTokenType.MilestoneEnd:
-                    AddNode(new CstMilestoneNode(GetSourceSpan(token), token.Value.ToArray().AsMemory(), token.Type == UsfmTokenType.MilestoneEnd, ImmutableArray<CstNode>.Empty), markerStack, rootChildren);
+                    AddNode(new CstMilestoneNode(GetSourceSpan(token), SourceMemory(token, 1, token.Value.Length), token.Type == UsfmTokenType.MilestoneEnd, ImmutableArray<CstNode>.Empty), markerStack, rootChildren);
                     break;
             }
         }
@@ -121,7 +123,7 @@ public ref struct UsfmCstParser
                             if (nextQuote != -1)
                             {
                                 var value = text.Slice(i, nextQuote);
-                                target.Add(new CstAttributeNode(new SourceSpan(token.Offset + i - 1, nextQuote + 2), key.ToArray().AsMemory(), value.ToArray().AsMemory()));
+                                target.Add(new CstAttributeNode(new SourceSpan(token.Offset + i - key.Length - 2, key.Length + nextQuote + 3), _source.Slice(token.Offset + i - key.Length - 2, key.Length), _source.Slice(token.Offset + i, value.Length)));
                                 i += nextQuote + 1;
                             }
                         }
@@ -130,7 +132,7 @@ public ref struct UsfmCstParser
                     {
                         // Shorthand - consume the rest as a single attribute if no = is found
                         var val = text[i..].Trim();
-                        target.Add(new CstAttributeNode(new SourceSpan(token.Offset + i, val.Length), "default".AsMemory(), val.ToArray().AsMemory()));
+                        target.Add(new CstAttributeNode(new SourceSpan(token.Offset + i, val.Length), "default".AsMemory(), _source.Slice(token.Offset + i, val.Length)));
                         break;
                     }
                 }
@@ -140,17 +142,20 @@ public ref struct UsfmCstParser
 
     private SourceSpan GetSourceSpan(UsfmToken token) => new(token.Offset, token.Span.Length);
 
+    private ReadOnlyMemory<char> SourceMemory(UsfmToken token, int relativeStart = 0, int? length = null) =>
+        _source.Slice(token.Offset + relativeStart, length ?? token.Span.Length - relativeStart);
+
     private class CstMarkerNodeBuilder
     {
         public int StartOffset { get; }
         public int StartLength { get; }
         public ReadOnlyMemory<char> Name { get; }
 
-        public CstMarkerNodeBuilder(UsfmToken token)
+        public CstMarkerNodeBuilder(UsfmToken token, ReadOnlyMemory<char> source)
         {
             StartOffset = token.Offset;
             StartLength = token.Span.Length;
-            Name = token.Value.ToArray().AsMemory();
+            Name = source.Slice(token.Offset + 1, token.Value.Length);
         }
 
         public CstMarkerNode Build(ImmutableArray<CstNode> children, SourceSpan endSpan)
