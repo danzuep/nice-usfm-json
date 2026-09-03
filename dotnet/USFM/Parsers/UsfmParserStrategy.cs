@@ -408,7 +408,7 @@ public class UsfmParserStrategy
         if (marker.SequenceEqual("id") || marker.SequenceEqual("c") || marker.SequenceEqual("v") || marker.EndsWith("-s") || marker.EndsWith("-e"))
             return UsfmMarkerType.Milestone;
 
-        if (marker.StartsWith("w"))
+        if (marker.StartsWith("w") || marker.SequenceEqual("ca"))
             return UsfmMarkerType.Attribute;
 
         if (marker.StartsWith("f") || marker.StartsWith("x"))
