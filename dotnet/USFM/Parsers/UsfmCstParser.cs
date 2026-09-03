@@ -82,12 +82,15 @@ public ref struct UsfmCstParser
         while (markerStack.Count > 0)
         {
             var (builder, children) = markerStack.Pop();
-            _diagnostics.Add(new ParsingDiagnostic(
-                $"Unterminated marker: \\{builder.Name.ToString()}",
-                new SourceSpan(builder.StartOffset, builder.StartLength))
+            if (RequiresClosingMarker(builder.Name.Span))
             {
-                Code = "USFM002"
-            });
+                _diagnostics.Add(new ParsingDiagnostic(
+                    $"Unterminated marker: \\{builder.Name.ToString()}",
+                    new SourceSpan(builder.StartOffset, builder.StartLength))
+                {
+                    Code = "USFM002"
+                });
+            }
             var markerNode = builder.Build(children.ToImmutableArray(), new SourceSpan(_source.Length, 0));
             AddNode(markerNode, markerStack, rootChildren);
         }
@@ -193,7 +196,9 @@ public ref struct UsfmCstParser
     private static bool RequiresClosingMarker(ReadOnlySpan<char> marker) =>
         marker.SequenceEqual("w") || marker.SequenceEqual("f") || marker.SequenceEqual("x") ||
         marker.SequenceEqual("add") || marker.SequenceEqual("nd") || marker.SequenceEqual("ord") ||
-        marker.SequenceEqual("pn") || marker.SequenceEqual("qt") || marker.SequenceEqual("it");
+        marker.SequenceEqual("pn") || marker.SequenceEqual("qt") || marker.SequenceEqual("it") ||
+        marker.SequenceEqual("ca") || marker.SequenceEqual("va") || marker.SequenceEqual("vp") ||
+        marker.SequenceEqual("ior");
 
     private static bool ShouldCloseImplicitScope(ReadOnlySpan<char> current, ReadOnlySpan<char> next)
     {
