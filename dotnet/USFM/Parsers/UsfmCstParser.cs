@@ -28,6 +28,12 @@ public ref struct UsfmCstParser
             switch (token.Type)
             {
                 case UsfmTokenType.Marker:
+                    while (markerStack.Count > 0 && !RequiresClosingMarker(markerStack.Peek().Builder.Name.Span))
+                    {
+                        var (implicitBuilder, implicitChildren) = markerStack.Pop();
+                        AddNode(implicitBuilder.Build(implicitChildren.ToImmutableArray(), new SourceSpan(token.Offset, 0)), markerStack, rootChildren);
+                    }
+
                     var markerBuilder = new CstMarkerNodeBuilder(token, _source);
                     markerStack.Push((markerBuilder, new List<CstNode>()));
                     break;
@@ -53,7 +59,7 @@ public ref struct UsfmCstParser
                 case UsfmTokenType.AttributePipe:
                     if (markerStack.Count > 0)
                     {
-                        ParseAttributes(markerStack.Peek().Children);
+                        ParseAttributes(markerStack.Peek().Builder.Attributes);
                     }
                     else
                     {
@@ -63,7 +69,9 @@ public ref struct UsfmCstParser
                 
                 case UsfmTokenType.MilestoneStart:
                 case UsfmTokenType.MilestoneEnd:
-                    AddNode(new CstMilestoneNode(GetSourceSpan(token), SourceMemory(token, 1, token.Value.Length), token.Type == UsfmTokenType.MilestoneEnd, ImmutableArray<CstNode>.Empty), markerStack, rootChildren);
+                    var attributes = new List<CstAttributeNode>();
+                    ParseAttributes(token, attributes);
+                    AddNode(new CstMilestoneNode(GetSourceSpan(token), SourceMemory(token, 1, token.Value.Length), token.Type == UsfmTokenType.MilestoneEnd, [.. attributes]), markerStack, rootChildren);
                     break;
             }
         }
@@ -71,7 +79,7 @@ public ref struct UsfmCstParser
         while (markerStack.Count > 0)
         {
             var (builder, children) = markerStack.Pop();
-            var markerNode = builder.Build(children.ToImmutableArray(), SourceSpan.Empty);
+            var markerNode = builder.Build(children.ToImmutableArray(), new SourceSpan(_source.Length, 0));
             AddNode(markerNode, markerStack, rootChildren);
         }
 
@@ -90,17 +98,12 @@ public ref struct UsfmCstParser
         }
     }
 
-    private void ParseAttributes(List<CstNode> target)
+    private void ParseAttributes(List<CstAttributeNode> target)
     {
-        while (_lexer.TryMoveNext(out var token))
+        while (_lexer.TryPeek(out var nextToken) &&
+               nextToken.Type is not (UsfmTokenType.Marker or UsfmTokenType.MarkerEnd or UsfmTokenType.EndOfFile))
         {
-            if (token.Type is UsfmTokenType.Marker or UsfmTokenType.MarkerEnd or UsfmTokenType.EndOfFile)
-            {
-                // In a real parser, we'd need to backtrack here. 
-                // Since our lexer is forward-only, we'd need to peek.
-                // For now, let's assume attributes are well-formed and followed by a marker or end of line.
-                break;
-            }
+            _lexer.TryMoveNext(out var token);
 
             if (token.Type == UsfmTokenType.Text)
             {
@@ -140,7 +143,48 @@ public ref struct UsfmCstParser
         }
     }
 
+    private void ParseAttributes(UsfmToken milestone, List<CstAttributeNode> target)
+    {
+        var span = milestone.Span;
+        int pipe = span.IndexOf('|');
+        if (pipe < 0)
+            return;
+
+        var attributes = span[(pipe + 1)..];
+        int end = attributes.LastIndexOf("\\*");
+        if (end >= 0)
+            attributes = attributes[..end];
+
+        ParseAttributeText(milestone.Offset + pipe + 1, attributes, target);
+    }
+
+    private void ParseAttributeText(int offset, ReadOnlySpan<char> text, List<CstAttributeNode> target)
+    {
+        int i = 0;
+        while (i < text.Length)
+        {
+            while (i < text.Length && char.IsWhiteSpace(text[i])) i++;
+            if (i >= text.Length) break;
+            int equals = text[i..].IndexOf('=');
+            if (equals < 0) break;
+            var key = text.Slice(i, equals).Trim();
+            int valueStart = i + equals + 1;
+            while (valueStart < text.Length && char.IsWhiteSpace(text[valueStart])) valueStart++;
+            if (valueStart >= text.Length || text[valueStart] != '"') break;
+            int valueEnd = text[(valueStart + 1)..].IndexOf('"');
+            if (valueEnd < 0) break;
+            valueEnd += valueStart + 1;
+            target.Add(new CstAttributeNode(new SourceSpan(offset + i, valueEnd - i + 1), _source.Slice(offset + i, key.Length), _source.Slice(offset + valueStart + 1, valueEnd - valueStart - 1)));
+            i = valueEnd + 1;
+        }
+    }
+
     private SourceSpan GetSourceSpan(UsfmToken token) => new(token.Offset, token.Span.Length);
+
+    private static bool RequiresClosingMarker(ReadOnlySpan<char> marker) =>
+        marker.SequenceEqual("w") || marker.SequenceEqual("f") || marker.SequenceEqual("x") ||
+        marker.SequenceEqual("add") || marker.SequenceEqual("nd") || marker.SequenceEqual("ord") ||
+        marker.SequenceEqual("pn") || marker.SequenceEqual("qt") || marker.SequenceEqual("it");
 
     private ReadOnlyMemory<char> SourceMemory(UsfmToken token, int relativeStart = 0, int? length = null) =>
         _source.Slice(token.Offset + relativeStart, length ?? token.Span.Length - relativeStart);
@@ -150,6 +194,7 @@ public ref struct UsfmCstParser
         public int StartOffset { get; }
         public int StartLength { get; }
         public ReadOnlyMemory<char> Name { get; }
+        public List<CstAttributeNode> Attributes { get; } = new();
 
         public CstMarkerNodeBuilder(UsfmToken token, ReadOnlyMemory<char> source)
         {
@@ -161,8 +206,8 @@ public ref struct UsfmCstParser
         public CstMarkerNode Build(ImmutableArray<CstNode> children, SourceSpan endSpan)
         {
             int start = StartOffset;
-            int length = endSpan.Length == 0 ? StartLength : endSpan.End - start;
-            return new CstMarkerNode(new SourceSpan(start, length), Name, children);
+            int length = endSpan.Start == 0 && endSpan.Length == 0 ? StartLength : endSpan.End - start;
+            return new CstMarkerNode(new SourceSpan(start, length), Name, children, [.. Attributes]);
         }
     }
 }

@@ -20,7 +20,8 @@ public sealed record CstRootNode(SourceSpan Span, ImmutableArray<CstNode> Childr
 public sealed record CstMarkerNode(
     SourceSpan Span, 
     ReadOnlyMemory<char> MarkerName, 
-    ImmutableArray<CstNode> Children) : CstNode(Span);
+    ImmutableArray<CstNode> Children,
+    ImmutableArray<CstAttributeNode> Attributes = default) : CstNode(Span);
 
 public sealed record CstTextNode(SourceSpan Span, ReadOnlyMemory<char> Text) : CstNode(Span);
 
@@ -33,4 +34,4 @@ public sealed record CstMilestoneNode(
     SourceSpan Span,
     ReadOnlyMemory<char> MarkerName,
     bool IsEnd,
-    ImmutableArray<CstNode> Attributes) : CstNode(Span);
+    ImmutableArray<CstAttributeNode> Attributes) : CstNode(Span);

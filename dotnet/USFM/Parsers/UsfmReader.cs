@@ -12,12 +12,12 @@ public sealed class UsfmReader
 
         using var reader = new StreamReader(source, leaveOpen: true);
         var text = await reader.ReadToEndAsync(cancellationToken);
-        foreach (var node in Parse(text))
+        var nodes = CstToAstLowerer.Parse(text.AsMemory(), out _);
+        foreach (var node in nodes)
         {
             cancellationToken.ThrowIfCancellationRequested();
             yield return node;
         }
     }
 
-    private static IReadOnlyList<IUsfmNode> Parse(string source) => UsfmParser.Parse(source.AsSpan());
 }
