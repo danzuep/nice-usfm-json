@@ -1,4 +1,4 @@
-namespace USFM.Visitors;
+namespace USFM.Ast;
 
 public interface IUsfmAstVisitor
 {

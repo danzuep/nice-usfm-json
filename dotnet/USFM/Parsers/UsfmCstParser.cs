@@ -48,7 +48,10 @@ public ref struct UsfmCstParser
                     else
                     {
                         AddNode(new CstTextNode(GetSourceSpan(token), SourceMemory(token)), markerStack, rootChildren);
-                        _diagnostics.Add(new ParsingDiagnostic($"Unexpected closing marker: \\{token.Value.ToString()}*", GetSourceSpan(token)));
+                        _diagnostics.Add(new ParsingDiagnostic($"Unexpected closing marker: \\{token.Value.ToString()}*", GetSourceSpan(token))
+                        {
+                            Code = "USFM001"
+                        });
                     }
                     break;
 
@@ -79,6 +82,12 @@ public ref struct UsfmCstParser
         while (markerStack.Count > 0)
         {
             var (builder, children) = markerStack.Pop();
+            _diagnostics.Add(new ParsingDiagnostic(
+                $"Unterminated marker: \\{builder.Name.ToString()}",
+                new SourceSpan(builder.StartOffset, builder.StartLength))
+            {
+                Code = "USFM002"
+            });
             var markerNode = builder.Build(children.ToImmutableArray(), new SourceSpan(_source.Length, 0));
             AddNode(markerNode, markerStack, rootChildren);
         }

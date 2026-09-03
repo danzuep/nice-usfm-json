@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using USFM.Lexers;
 
-namespace USFM.Visitors;
+namespace USFM.Ast;
 
 public interface IUsfmNode { }
 
