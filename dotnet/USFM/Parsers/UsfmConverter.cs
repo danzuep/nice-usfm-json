@@ -1,5 +1,4 @@
 ﻿using System.Text.Json;
-using System.Text.Json.Serialization;
 using USFM.Visitors;
 using USJ;
 
@@ -51,11 +50,6 @@ public class UsfmConverter
     public async Task<string> ConvertUsfmToUsjJsonAsync(Stream usfmStream, CancellationToken cancellationToken = default)
     {
         var document = await ConvertUsfmToUsjAsync(usfmStream, cancellationToken);
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        };
-        return JsonSerializer.Serialize(document, options);
+        return JsonSerializer.Serialize(document, UsjJsonContext.Default.UsjDocument);
     }
 }
