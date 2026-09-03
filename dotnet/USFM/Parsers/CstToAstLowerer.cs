@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using USFM.Ast;
 
 namespace USFM.Parsers;
@@ -10,7 +11,7 @@ public static class CstToAstLowerer
         var result = new List<IUsfmNode>(root.Children.Length);
         foreach (var node in root.Children)
             LowerNode(node, source, result);
-        return result;
+        return GroupInlineContinuations(GroupTables(result));
     }
 
     public static IReadOnlyList<IUsfmNode> Parse(ReadOnlyMemory<char> source, out IReadOnlyList<ParsingDiagnostic> diagnostics)
@@ -41,7 +42,7 @@ public static class CstToAstLowerer
 
     private static void LowerMarker(CstMarkerNode marker, ReadOnlyMemory<char> source, List<IUsfmNode> result)
     {
-        var style = marker.MarkerName.ToString();
+        var style = marker.MarkerName.ToString().TrimStart('+');
         var children = LowerChildren(marker.Children, source);
         var text = FlattenText(marker.Children);
         var attributes = Attributes(marker.Attributes).ToList();
@@ -64,8 +65,7 @@ public static class CstToAstLowerer
             case "v":
                 var verseText = NormalizeVerseText(RemainingAfterFirstWord(text), marker.Span, source);
                 result.Add(new VerseNode(style, FirstWord(text), string.IsNullOrEmpty(verseText) ? null : verseText));
-                if (!string.IsNullOrEmpty(verseText))
-                    result.Add(new TextNode(verseText));
+                LowerVerseContent(marker.Children, source, result);
                 break;
             case "w":
             case "add":
@@ -74,13 +74,24 @@ public static class CstToAstLowerer
             case "ord":
             case "pn":
             case "ior":
+            case "bk":
+            case "jmp":
             case "va":
             case "vp":
-                result.Add(new CharNode(style, children, attributeCollection));
+            case "xo":
+            case "xt":
+            case "fr":
+            case "ft":
+            case "fq":
+            case "fqa":
+            case "fv":
+            case "xk":
+            case "xq":
+                result.Add(new CharNode(style, IsNoteSubmarkerStyle(style) ? TrimTrailingText(children) : children, attributeCollection));
                 break;
             case "f":
             case "x":
-                result.Add(new NoteNode(style, FirstWord(text), children));
+                result.Add(new NoteNode(style, FirstWord(text), RemoveNoteCaller(children, FirstWord(text))));
                 break;
             case var _ when style.StartsWith('p'):
                 result.Add(new ParaNode(style, children));
@@ -95,6 +106,8 @@ public static class CstToAstLowerer
             case "toca2":
             case "toca3":
             case "usfm":
+            case "ms":
+            case "mr":
             case var _ when style.StartsWith('s'):
             case "r":
             case "m":
@@ -112,7 +125,7 @@ public static class CstToAstLowerer
                 result.Add(new RowNode(style, children));
                 break;
             case var _ when style.StartsWith("tc") || style.StartsWith("th"):
-                result.Add(new CellNode(style, CellAlignment(style), children));
+                result.Add(new CellNode(style, CellAlignment(style), TrimTrailingText(children)));
                 break;
             case var _ when style.StartsWith('t'):
                 result.Add(new TableNode(style, children));
@@ -128,15 +141,123 @@ public static class CstToAstLowerer
 
     private static List<IUsfmNode> LowerChildren(IEnumerable<CstNode> nodes, ReadOnlyMemory<char> source)
     {
+        var concreteNodes = nodes.ToList();
         var result = new List<IUsfmNode>();
-        foreach (var node in nodes)
+        for (var index = 0; index < concreteNodes.Count; index++)
+        {
+            var node = concreteNodes[index];
+            if (node is CstTextNode text && index + 1 < concreteNodes.Count && concreteNodes[index + 1] is CstMarkerNode nextMarker &&
+                (nextMarker.MarkerName.Span.StartsWith("tc") || nextMarker.MarkerName.Span.StartsWith("th") ||
+                 nextMarker.MarkerName.Span.SequenceEqual("bk") || nextMarker.MarkerName.Span.SequenceEqual("+nd")))
+            {
+                var trimmed = text.Text.Span.TrimEnd();
+                if (!trimmed.IsEmpty)
+                    result.Add(new TextNode(trimmed.ToString()));
+                continue;
+            }
             LowerNode(node, source, result);
+        }
 
         var rows = result.OfType<RowNode>().ToList();
         if (rows.Count > 0 && rows.Count == result.Count(row => row is RowNode))
-            return [new TableNode("table", rows.Cast<IUsfmNode>().ToList())];
+            return [new TableNode(string.Empty, rows.Cast<IUsfmNode>().ToList())];
 
         return result;
+    }
+
+    private static List<IUsfmNode> GroupTables(List<IUsfmNode> nodes)
+    {
+        var result = new List<IUsfmNode>(nodes.Count);
+        for (var index = 0; index < nodes.Count; index++)
+        {
+            if (nodes[index] is not RowNode)
+            {
+                result.Add(nodes[index]);
+                continue;
+            }
+
+            var rows = new List<IUsfmNode>();
+            while (index < nodes.Count && nodes[index] is RowNode)
+                rows.Add(nodes[index++]);
+            index--;
+            result.Add(new TableNode(string.Empty, rows));
+        }
+        return result;
+    }
+
+    private static List<IUsfmNode> GroupInlineContinuations(List<IUsfmNode> nodes)
+    {
+        var result = new List<IUsfmNode>(nodes.Count);
+        for (var index = 0; index < nodes.Count; index++)
+        {
+            if (nodes[index] is ParaNode paragraph && index + 1 < nodes.Count &&
+                paragraph.Style.StartsWith("io", StringComparison.Ordinal) &&
+                nodes[index + 1] is CharNode { Style: "ior" } continuation)
+            {
+                var content = paragraph.Content?.ToList() ?? [];
+                if (content.LastOrDefault() is TextNode text)
+                    content[^1] = new TextNode(text.Text.TrimEnd());
+                content.Add(continuation);
+                result.Add(new ParaNode(paragraph.Style, content));
+                index++;
+                continue;
+            }
+
+            result.Add(nodes[index]);
+        }
+        return result;
+    }
+
+    private static IList<IUsfmNode> TrimTrailingText(IList<IUsfmNode> children)
+    {
+        if (children.LastOrDefault() is not TextNode text)
+            return children;
+
+        var trimmed = children.ToList();
+        trimmed[^1] = new TextNode(text.Text.TrimEnd());
+        return trimmed;
+    }
+
+    private static bool IsNoteSubmarkerStyle(string style) =>
+        style is "xo" or "xt" or "fr" or "ft" or "fq" or "fqa" or "fv" or "xk" or "xq";
+
+    private static IList<IUsfmNode> RemoveNoteCaller(IList<IUsfmNode> children, string caller)
+    {
+        if (children.FirstOrDefault() is not TextNode text)
+            return children;
+
+        var remainder = text.Text.StartsWith(caller, StringComparison.Ordinal)
+            ? text.Text[caller.Length..].TrimStart()
+            : text.Text;
+        var result = children.ToList();
+        if (string.IsNullOrEmpty(remainder))
+            result.RemoveAt(0);
+        else
+            result[0] = new TextNode(remainder);
+        return result;
+    }
+
+    private static void LowerVerseContent(ImmutableArray<CstNode> nodes, ReadOnlyMemory<char> source, List<IUsfmNode> result)
+    {
+        var firstText = true;
+        for (var index = 0; index < nodes.Length; index++)
+        {
+            var node = nodes[index];
+            if (node is CstTextNode text)
+            {
+                var value = firstText
+                    ? NormalizeVerseText(RemainingAfterFirstWord(text.Text.ToString()), node.Span, source)
+                    : NormalizeText(text.Text.Span);
+                if (!firstText && value != null && (text.Text.Span.EndsWith('\n') || text.Text.Span.EndsWith('\r')) && index + 1 < nodes.Length)
+                    value += " ";
+                if (!string.IsNullOrEmpty(value))
+                    result.Add(new TextNode(value));
+                firstText = false;
+                continue;
+            }
+
+            LowerNode(node, source, result);
+        }
     }
 
     private static UsfmAttributeCollection Attributes(IEnumerable<CstAttributeNode> nodes) =>

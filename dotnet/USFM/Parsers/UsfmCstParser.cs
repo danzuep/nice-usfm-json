@@ -39,6 +39,11 @@ public ref struct UsfmCstParser
                     break;
 
                 case UsfmTokenType.MarkerEnd:
+                    while (markerStack.Count > 0 && IsNoteSubmarker(markerStack.Peek().Builder.Name.Span))
+                    {
+                        var (submarkerBuilder, submarkerChildren) = markerStack.Pop();
+                        AddNode(submarkerBuilder.Build(submarkerChildren.ToImmutableArray(), new SourceSpan(token.Offset, 0)), markerStack, rootChildren);
+                    }
                     if (markerStack.Count > 0 && markerStack.Peek().Builder.Name.Span.SequenceEqual(token.Value))
                     {
                         var (builder, children) = markerStack.Pop();
@@ -198,12 +203,15 @@ public ref struct UsfmCstParser
         marker.SequenceEqual("add") || marker.SequenceEqual("nd") || marker.SequenceEqual("ord") ||
         marker.SequenceEqual("pn") || marker.SequenceEqual("qt") || marker.SequenceEqual("it") ||
         marker.SequenceEqual("ca") || marker.SequenceEqual("va") || marker.SequenceEqual("vp") ||
-        marker.SequenceEqual("ior");
+        marker.SequenceEqual("ior") || marker.SequenceEqual("bk") || marker.SequenceEqual("jmp");
 
     private static bool ShouldCloseImplicitScope(ReadOnlySpan<char> current, ReadOnlySpan<char> next)
     {
         if (RequiresClosingMarker(current))
             return false;
+
+        if (IsNoteSubmarker(current))
+            return true;
 
         if (current.SequenceEqual("v"))
             return true;
@@ -215,7 +223,7 @@ public ref struct UsfmCstParser
             return next.SequenceEqual("tr") || (IsBlockMarker(next) && !IsCellMarker(next));
 
         if (IsCellMarker(current))
-            return IsBlockMarker(next) && !IsCellMarker(next);
+            return IsCellMarker(next) || (IsBlockMarker(next) && !IsCellMarker(next));
 
         return IsBlockMarker(next);
     }
@@ -223,13 +231,18 @@ public ref struct UsfmCstParser
     private static bool IsCellMarker(ReadOnlySpan<char> marker) =>
         marker.StartsWith("tc") || marker.StartsWith("th");
 
+    private static bool IsNoteSubmarker(ReadOnlySpan<char> marker) =>
+        marker.SequenceEqual("xo") || marker.SequenceEqual("xt") || marker.SequenceEqual("fr") ||
+        marker.SequenceEqual("ft") || marker.SequenceEqual("fq") || marker.SequenceEqual("fqa") ||
+        marker.SequenceEqual("fv") || marker.SequenceEqual("xk") || marker.SequenceEqual("xq");
+
     private static bool IsBlockMarker(ReadOnlySpan<char> marker) =>
         marker.SequenceEqual("id") || marker.SequenceEqual("c") || marker.SequenceEqual("p") ||
         marker.StartsWith('p') || marker.StartsWith('s') || marker.SequenceEqual("r") ||
         marker.SequenceEqual("m") || marker.StartsWith('h') || marker.StartsWith('i') ||
-        marker.StartsWith('l') || marker.StartsWith('t') || marker.StartsWith('q') ||
-        marker.StartsWith("mt") || marker.StartsWith("is") || marker.StartsWith("ip") ||
-        marker.StartsWith("li") || marker.StartsWith("tr") || marker.StartsWith("th") ||
+        marker.StartsWith('l') || (marker.StartsWith('i') && !marker.SequenceEqual("ior")) || marker.StartsWith('t') || marker.StartsWith('q') ||
+        marker.StartsWith("mt") || marker.StartsWith("ms") || marker.StartsWith("mr") || marker.StartsWith("is") || marker.StartsWith("ip") ||
+        marker.StartsWith("li") || marker.SequenceEqual("usfm") || marker.StartsWith("tr") || marker.StartsWith("th") ||
         marker.StartsWith("tc") || marker.SequenceEqual("cl") || marker.SequenceEqual("cp") ||
         marker.SequenceEqual("cd");
 

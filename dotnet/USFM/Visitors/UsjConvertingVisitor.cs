@@ -6,6 +6,16 @@ namespace USFM.Visitors;
 
 public class UsjConvertingVisitor : AstProjectionVisitor<IUsjNode>
 {
+    private bool _insideNote;
+
+    public override void Visit(NoteNode node)
+    {
+        var previous = _insideNote;
+        _insideNote = true;
+        base.Visit(node);
+        _insideNote = previous;
+    }
+
     protected override IUsjNode CreateBook(BookNode node) =>
         new UsjBook(node.Code, null,
             node.Description == null ? null : [new UsjText(node.Description)], node.Style);
@@ -24,6 +34,8 @@ public class UsjConvertingVisitor : AstProjectionVisitor<IUsjNode>
         var result = new UsjChar(children, node.Style);
         foreach (var attribute in node.Attributes)
             result.ExtraProperties[attribute.Key] = JsonSerializer.SerializeToElement(attribute.Value);
+        if (_insideNote)
+            result.ExtraProperties["closed"] = JsonSerializer.SerializeToElement("false");
         return result;
     }
 
