@@ -1,6 +1,8 @@
 # nice-usfm-json
 Discussions, schema and other artefacts around the dream of a JSON format that respects the USFM spec and that developers don't hate. Too much. Most of the time.
 
+See [docs/architecture.md](docs/architecture.md) for the planned staged parser architecture, performance and memory rules, diagnostics model, projection visitors, and legacy pipeline retirement plan.
+
 
 ## How to setup and run
 
