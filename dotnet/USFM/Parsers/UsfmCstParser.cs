@@ -142,19 +142,21 @@ public ref struct UsfmCstParser
 
     private class CstMarkerNodeBuilder
     {
-        public UsfmToken StartToken { get; }
+        public int StartOffset { get; }
+        public int StartLength { get; }
         public ReadOnlyMemory<char> Name { get; }
 
         public CstMarkerNodeBuilder(UsfmToken token)
         {
-            StartToken = token;
+            StartOffset = token.Offset;
+            StartLength = token.Span.Length;
             Name = token.Value.ToArray().AsMemory();
         }
 
         public CstMarkerNode Build(ImmutableArray<CstNode> children, SourceSpan endSpan)
         {
-            int start = StartToken.Offset;
-            int length = endSpan.IsEmpty ? StartToken.Span.Length : endSpan.End - start;
+            int start = StartOffset;
+            int length = endSpan.Length == 0 ? StartLength : endSpan.End - start;
             return new CstMarkerNode(new SourceSpan(start, length), Name, children);
         }
     }
