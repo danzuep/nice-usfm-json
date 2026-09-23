@@ -20,3 +20,12 @@ dotnet run --project dotnet/USFM.Tests/USFM.Tests.csproj -- --list-tests --diagn
 ```sh
 dotnet run --project dotnet/USFM.Tests/USFM.Tests.csproj -- --filter-uid USFM.Tests.UsfmLexerTests.*
 ```
+
+- Run tests with `dotnet test`:
+
+```sh
+cd /c/Source/GitHub/nice-usfm-json/dotnet/
+dotnet test USFM.Tests/USFM.Tests.csproj
+dotnet test USJ.Tests/USJ.Tests.csproj
+dotnet test USX.Tests/USX.Tests.csproj
+```
