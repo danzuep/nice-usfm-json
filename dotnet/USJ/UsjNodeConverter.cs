@@ -79,7 +79,7 @@ public class UsjNodeConverter : JsonConverter<IUsjNode>
                 GetContent(root, "content", options),
                 Style: nodeStyle),
 
-            "book" => new UsjIdentification(
+            "book" => new UsjBook(
                 GetStringProperty(root, "code"),
                 TryGetStringProperty(root, "description"),
                 GetContent(root, "content", options),
@@ -143,6 +143,24 @@ public class UsjNodeConverter : JsonConverter<IUsjNode>
         if (value is UsjText textNode)
         {
             writer.WriteStringValue(textNode.Text);
+            return;
+        }
+
+        if (value is UsjChar character)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("type", character.Type);
+            foreach (var property in character.ExtraProperties)
+            {
+                writer.WritePropertyName(property.Key);
+                property.Value.WriteTo(writer);
+            }
+            if (character.Content is not null)
+            {
+                writer.WritePropertyName("content");
+                JsonSerializer.Serialize(writer, character.Content, options);
+            }
+            writer.WriteEndObject();
             return;
         }
 

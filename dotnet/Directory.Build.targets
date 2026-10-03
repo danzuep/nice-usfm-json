@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <!--<TestingPlatformDisableCustomTestTarget>true</TestingPlatformDisableCustomTestTarget>-->
+    <!--<IsTestingPlatformApplication>false</IsTestingPlatformApplication>-->
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,80 @@
+using System.Diagnostics;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using USFM.Lexers;
+using USFM.Parsers;
+using USFM.Tests.Helpers;
+using USJ;
+
+namespace USFM.Tests;
+
+public class UsfmUsjDataGeneratorTests
+{
+    [Test]
+    [Arguments("minimal")]
+    public async Task DeserializeUsfmUsj_FromEmbeddedResource(string resourceName)
+    {
+        (var fullResourceName, var usfmStream) = EmbeddedFileHelpers.LoadEmbeddedFile(resourceName);
+        await Assert.That(usfmStream).IsNotNull();
+        var converter = new UsfmConverter();
+        var actualDocument = await converter.ConvertUsfmToUsjAsync(usfmStream);
+        await Assert.That(actualDocument).IsNotNull();
+        await Assert.That(actualDocument.Type).IsEqualTo(UsjDocument.UsjType);
+        await Assert.That(actualDocument.Version).IsEqualTo(UsjDocument.UsjVersion);
+        await Assert.That(actualDocument.Content).IsNotNull();
+        //await Assert.That(actualDocument.Content.Count).IsEqualTo(3);
+    }
+
+    [Test]
+    [UsfmDataGenerator]
+    public async Task ConvertUsfmToUsj_WithUsfmDataGenerator(string name, Stream usfmStream, Stream expectedJsonStream)
+    {
+        TestContext.Current?.OutputWriter.WriteLine(name);
+        await Assert.That(usfmStream).IsNotNull();
+        await Assert.That(expectedJsonStream).IsNotNull();
+
+        var converter = new UsfmConverter();
+        var actualDocument = await converter.ConvertUsfmToUsjAsync(usfmStream);
+
+        await Assert.That(actualDocument).IsNotNull();
+
+        // Serialize actual result to JSON
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNameCaseInsensitive = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        var actualJson = JsonSerializer.Serialize(actualDocument, options);
+
+        // Deserialize expected JSON
+        expectedJsonStream.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(expectedJsonStream);
+        var expectedJson = await reader.ReadToEndAsync();
+
+        // Compare JSON structures (allowing different attribute order)
+        var expectedDoc = JsonNode.Parse(expectedJson);
+        var actualDoc = JsonNode.Parse(actualJson);
+
+#if DEBUG
+        var path1 = Path.Combine("..", "..", $"{name}_expected.json");
+        await File.WriteAllTextAsync(path1, expectedJson);
+        Debug.WriteLine($"Serialized JSON written to: {path1}");
+        var path2 = Path.Combine("..", "..", $"{name}_actual.json");
+        await File.WriteAllTextAsync(path2, actualJson);
+        Debug.WriteLine($"Serialized JSON written to: {path2}");
+#endif
+
+        await Assert.That(expectedDoc).IsNotNull();
+        await Assert.That(actualDoc).IsNotNull();
+        if (!JsonNode.DeepEquals(actualDoc, expectedDoc))
+        {
+            TestContext.Current?.OutputWriter.WriteLine(actualJson);
+            TestContext.Current?.OutputWriter.WriteLine(expectedJson);
+        }
+        await Assert.That(JsonNode.DeepEquals(actualDoc, expectedDoc)).IsTrue();
+    }
+}

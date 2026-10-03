@@ -24,14 +24,14 @@ public class UsxToUsjConverter
         _parserFactory.SetTextParser(enrich);
     }
 
-    public async Task<UsjBook> ParseUsxBookAsync(XmlReader reader, CancellationToken cancellationToken = default)
+    public async Task<USX.Models.UsjBook> ParseUsxBookAsync(XmlReader reader, CancellationToken cancellationToken = default)
     {
         var version = reader.GetAttribute("version") ?? string.Empty;
-        UsjIdentification? identification = null;
+        USJ.UsjBook? identification = null;
         var content = new List<IUsjNode>();
 
         if (reader.IsEmptyElement)
-            return new UsjBook(version, new UsjIdentification(), new List<IUsjNode>());
+            return new USX.Models.UsjBook(version, new USJ.UsjBook(), new List<IUsjNode>());
 
         while (await reader.ReadAsync())
         {
@@ -46,7 +46,7 @@ public class UsxToUsjConverter
                 {
                     var node = await parser.ParseAsync(reader, cancellationToken);
 
-                    if (node is UsjIdentification id)
+                    if (node is USJ.UsjBook id)
                         identification = id;
                     else if (node != null)
                         content.Add(node);
@@ -58,18 +58,18 @@ public class UsxToUsjConverter
             }
         }
 
-        identification ??= new UsjIdentification();
-        return new UsjBook(version, identification, content);
+        identification ??= new USJ.UsjBook();
+        return new USX.Models.UsjBook(version, identification, content);
     }
 
-    public async Task<UsjBook> ParseUsxBookAsync(XDocument xDocument)
+    public async Task<USX.Models.UsjBook> ParseUsxBookAsync(XDocument xDocument)
     {
         if (xDocument.Root == null || xDocument.Root.Name.LocalName != "usx")
             throw new InvalidDataException("No <usx> root element found.");
 
         var version = (string?)xDocument.Root.Attribute("version") ?? string.Empty;
 
-        UsjIdentification? identification = null;
+        USJ.UsjBook? identification = null;
         var content = new List<IUsjNode>();
 
         foreach (var element in xDocument.Root.Elements())
@@ -80,7 +80,7 @@ public class UsxToUsjConverter
                 // Move to the element node
                 _ = reader.MoveToContent();
                 var node = await parser.ParseAsync(reader);
-                if (node is UsjIdentification id)
+                if (node is USJ.UsjBook id)
                     identification = id;
                 else
                     content.Add(node);
@@ -91,8 +91,8 @@ public class UsxToUsjConverter
             }
         }
 
-        identification ??= new UsjIdentification();
-        return new UsjBook(version, identification, content);
+        identification ??= new USJ.UsjBook();
+        return new USX.Models.UsjBook(version, identification, content);
     }
 
     private static readonly LoadOptions _settings = LoadOptions.PreserveWhitespace;
@@ -107,7 +107,7 @@ public class UsxToUsjConverter
         }
     }
 
-    public UsjBook ConvertUsxStreamToUsjBook(Stream usxStream)
+    public USX.Models.UsjBook ConvertUsxStreamToUsjBook(Stream usxStream)
     {
         // Load XDocument synchronously but from the stream directly
         var xDocument = XDocument.Load(usxStream, _settings);
@@ -119,7 +119,7 @@ public class UsxToUsjConverter
         }
 
         // Deserialize the XDocument into UsjBook
-        var book = Deserialize<UsjBook>(xDocument);
+        var book = Deserialize<USX.Models.UsjBook>(xDocument);
 
         if (book == null)
         {
@@ -129,7 +129,7 @@ public class UsxToUsjConverter
         return book;
     }
 
-    public async Task<UsjBook> ConvertToUsjBookAsync(Stream usxStream, CancellationToken cancellationToken = default)
+    public async Task<USX.Models.UsjBook> ConvertToUsjBookAsync(Stream usxStream, CancellationToken cancellationToken = default)
     {
         using var reader = XmlReader.Create(usxStream, new XmlReaderSettings { Async = true });
 
@@ -145,7 +145,7 @@ public class UsxToUsjConverter
         throw new InvalidDataException("No <usx> root element found.");
     }
 
-    public async Task<UsjBook> ConvertUsxStreamToUsjBookAsync(Stream usxStream, CancellationToken cancellationToken = default)
+    public async Task<USX.Models.UsjBook> ConvertUsxStreamToUsjBookAsync(Stream usxStream, CancellationToken cancellationToken = default)
     {
         using var reader = XmlReader.Create(usxStream, new XmlReaderSettings { Async = true });
 
@@ -166,7 +166,7 @@ public class UsxToUsjConverter
     /// Tries to use XmlReader with IgnoreWhitespace=false if possible,
     /// otherwise falls back to loading XDocument with PreserveWhitespace.
     /// </summary>
-    public async Task<UsjBook> ConvertUsxStreamToUsjBookPreserveWhitespaceAsync(Stream usxStream)
+    public async Task<USX.Models.UsjBook> ConvertUsxStreamToUsjBookPreserveWhitespaceAsync(Stream usxStream)
     {
         // Attempt to create XmlReader with whitespace preserved
         var settings = new XmlReaderSettings
@@ -204,7 +204,7 @@ public class UsxToUsjConverter
             if (xDocument.Root == null || xDocument.Root.Name.LocalName != "usx")
                 throw new InvalidDataException("No <usx> root element found.");
 
-            var book = Deserialize<UsjBook>(xDocument);
+            var book = Deserialize<USX.Models.UsjBook>(xDocument);
             if (book == null) throw new InvalidDataException("Failed to deserialize UsjBook.");
 
             return book;
@@ -224,7 +224,7 @@ public class UsxToUsjConverter
         return json;
     }
 
-    public async Task<UsjBook?> DeserializeToUsjBookAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<USX.Models.UsjBook?> DeserializeToUsjBookAsync(string filePath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath)) throw new ArgumentNullException(nameof(filePath));
         using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);

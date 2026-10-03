@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="USJ/USJ.csproj" />
+  <Project Path="USJ.Tests/USJ.Tests.csproj" />
+  <Project Path="USX/USX.csproj" />
+  <Project Path="USX.Tests/USX.Tests.csproj" />
+  <Project Path="USFM/USFM.csproj" />
+  <Project Path="USFM.Tests/USFM.Tests.csproj" />
+</Solution>

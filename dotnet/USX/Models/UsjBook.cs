@@ -8,12 +8,12 @@ namespace USX.Models
         string SchemaVersion,
         [property: JsonPropertyName("metadata")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        UsjIdentification? Metadata = null,
+        USJ.UsjBook? Metadata = null,
         IList<IUsjNode>? Content = null,
         string? Style = null
     ) : UsjContentNodeBase("book", Style, Content)
     {
-        public UsjBook() : this(string.Empty, new UsjIdentification(), new List<IUsjNode>()) { }
+        public UsjBook() : this(string.Empty, new USJ.UsjBook(), new List<IUsjNode>()) { }
     }
 
 

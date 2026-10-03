@@ -12,7 +12,7 @@ namespace USJ;
 [JsonSerializable(typeof(UsjCell))]
 [JsonSerializable(typeof(UsjText))]
 [JsonSerializable(typeof(UsjNote))]
-[JsonSerializable(typeof(UsjIdentification))]
+[JsonSerializable(typeof(UsjBook))]
 [JsonSerializable(typeof(UsjMilestone))]
 [JsonSerializable(typeof(UsjLineBreak))]
 public partial class UsjJsonContext : JsonSerializerContext
